@@ -70,8 +70,16 @@ export default function CitizenLayout() {
     <div className="min-h-screen bg-[#f7f6ef] lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
       <header className="relative z-30 bg-[#173d2b] text-white shadow-sm lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:overflow-y-auto">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:mx-0 lg:max-w-none lg:flex-col lg:items-stretch lg:px-5 lg:py-7">
-          <Link to="/citizen" onClick={closeMoreMenu} className="inline-flex w-fit shrink-0 rounded-lg px-1 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
-            <img src={nammakkalLogo} alt="NAMMAKKAL civic platform" className="h-8 w-auto max-w-36 object-contain sm:h-10 sm:max-w-44" />
+          <Link
+            to="/citizen"
+            onClick={closeMoreMenu}
+            className="inline-flex w-fit shrink-0 rounded-lg px-1 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          >
+            <img
+              src={nammakkalLogo}
+              alt="NAMMAKKAL civic platform"
+              className="h-12 w-auto max-w-44 object-contain sm:h-14 sm:max-w-52"
+            />
           </Link>
           <Link
             to="/citizen/profile"

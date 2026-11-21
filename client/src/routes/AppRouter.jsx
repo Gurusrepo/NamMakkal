@@ -30,13 +30,23 @@ import Disputes from '../pages/admin/Disputes.jsx';
 import Officers from '../pages/admin/Officers.jsx';
 import Wards from '../pages/admin/Wards.jsx';
 import Teams from '../pages/admin/Teams.jsx';
+import OfficerLayout from '../layouts/OfficerLayout.jsx';
+import OfficerDashboard from '../pages/officer/OfficerDashboard.jsx';
+import OfficerIssues from '../pages/officer/OfficerIssues.jsx';
+import OfficerIssueDetails from '../pages/officer/OfficerIssueDetails.jsx';
+import OfficerTeams from '../pages/officer/OfficerTeams.jsx';
+import OfficerNotifications from '../pages/officer/OfficerNotifications.jsx';
+import OfficerProfile from '../pages/officer/OfficerProfile.jsx';
 
 function HomeRoute() {
   const { user, isLoading } = useAuth();
   const roleRoute = { CITIZEN: '/citizen', OFFICER: '/officer', ADMIN: '/admin' }[user?.role];
   if (isLoading) return <main className="grid min-h-screen place-items-center bg-[#f7f6ef] p-6"><LoadingState>Checking your session...</LoadingState></main>;
-  return roleRoute ? <Navigate to={roleRoute} replace /> : <PlaceholderPage />;
-}
+  return roleRoute
+  ? <Navigate to={roleRoute} replace />
+  : user
+    ? <PlaceholderPage />
+    : <Navigate to="/login" replace />;}
 
 export const router = createBrowserRouter([
   {
@@ -75,10 +85,18 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <RoleRoute allowedRoles={['OFFICER']}>
-          <PlaceholderPage />
+          <OfficerLayout />
         </RoleRoute>
       </ProtectedRoute>
-    )
+    ),
+    children: [
+      { index: true, element: <OfficerDashboard /> },
+      { path: 'issues', element: <OfficerIssues /> },
+      { path: 'issues/:id', element: <OfficerIssueDetails /> },
+      { path: 'teams', element: <OfficerTeams /> },
+      { path: 'notifications', element: <OfficerNotifications /> },
+      { path: 'profile', element: <OfficerProfile /> }
+    ]
   },
   {
     path: '/admin',

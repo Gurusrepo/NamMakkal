@@ -293,7 +293,7 @@ test('profile image replacement persists before deleting the old object and pres
   assert.equal(db.prepare('SELECT profile_image_key FROM users WHERE id=2').get().profile_image_key, 'profile-images/new.png');
 });
 
-test('notification endpoints paginate and only read or change the current citizen’s notifications', async () => {
+test('notification endpoints paginate and keep read operations user-scoped for citizens and officers', async () => {
   const insert = db.prepare(`INSERT INTO notifications
     (user_id,title,message,notification_type,related_complaint_id,event_key)
     VALUES(?,?,'A civic issue has changed.','ISSUE_RESOLVED',?,?)`);
@@ -301,7 +301,9 @@ test('notification endpoints paginate and only read or change the current citize
   insert.run(2, 'Second update', complaintIds[1], 'test:event:second');
   const otherId = Number(insert.run(3, 'Other citizen update', complaintIds[5], 'test:event:other').lastInsertRowid);
 
-  assert.equal((await request('/api/notifications', { userId: 4 })).status, 403);
+  const officerNotifications = await request('/api/notifications', { userId: 4 });
+  assert.equal(officerNotifications.status, 200);
+  assert.deepEqual((await officerNotifications.json()).items, []);
   assert.equal((await request('/api/notifications')).status, 401);
   const unread = await request('/api/notifications/unread-count', { userId: 2 });
   assert.deepEqual(await unread.json(), { unreadCount: 2 });
@@ -314,6 +316,7 @@ test('notification endpoints paginate and only read or change the current citize
   assert.equal(pageResult.items[0].isRead, false);
 
   assert.equal((await request(`/api/notifications/${otherId}/read`, { userId: 2, method: 'PATCH' })).status, 404);
+  assert.equal((await request(`/api/notifications/${firstId}/read`, { userId: 4, method: 'PATCH' })).status, 404);
   const marked = await request(`/api/notifications/${firstId}/read`, { userId: 2, method: 'PATCH' });
   assert.equal(marked.status, 200);
   assert.equal((await marked.json()).notification.isRead, true);

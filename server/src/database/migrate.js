@@ -26,6 +26,11 @@ import * as supportSubmissionStatus from './migrations/024_support_submission_st
 import * as supportSuggestionsWorkflow from './migrations/025_support_suggestions_workflow.js';
 import * as announcementManagement from './migrations/026_announcement_management.js';
 import * as officerManagement from './migrations/027_officer_management.js';
+import * as officerInspections from './migrations/028_officer_inspections.js';
+import * as officerWorkProgress from './migrations/029_officer_work_progress.js';
+import * as officerResolutions from './migrations/030_officer_resolutions.js';
+import * as officerNotifications from './migrations/031_officer_notifications.js';
+import * as officerActionPlans from './migrations/032_officer_action_plans.js';
 
 export const migrations = [
   coreSchema,
@@ -54,7 +59,12 @@ export const migrations = [
   supportSubmissionStatus,
   supportSuggestionsWorkflow,
   announcementManagement,
-  officerManagement
+  officerManagement,
+  officerInspections,
+  officerWorkProgress,
+  officerResolutions,
+  officerNotifications,
+  officerActionPlans
 ];
 
 export function migrateDatabase(database = defaultDatabase) {

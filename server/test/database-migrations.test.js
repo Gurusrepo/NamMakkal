@@ -23,6 +23,7 @@ import * as assignmentMigration from '../src/database/migrations/003_issue_assig
 import * as groupingMigration from '../src/database/migrations/004_issue_grouping.js';
 import * as authOtpMigration from '../src/database/migrations/019_auth_otp_purposes_and_rate_limits.js';
 import * as requiredVerificationDestinationMigration from '../src/database/migrations/020_required_verification_destination.js';
+import * as officerNotificationsMigration from '../src/database/migrations/031_officer_notifications.js';
 const { db: defaultDb, closeDatabase } = await import('../src/config/database.js');
 
 after(() => {
@@ -33,9 +34,9 @@ after(() => {
 test('fresh initialization applies each migration once and creates the full schema', () => {
   const fresh = new Database(':memory:');
   fresh.pragma('foreign_keys = ON');
-  assert.deepEqual(migrateDatabase(fresh), ['001_core_schema', '002_civic_issues', '003_issue_assignments', '004_issue_grouping', '005_ward_team_management', '006_issue_team_assignments', '007_officer_workflow_evidence', '008_citizen_resolution_verification', '009_announcements', '010_announcement_visibility', '011_notifications', '012_profile_images', '013_citizen_preferences', '014_profile_support_password_reset', '015_citizen_verification', '016_account_lifecycle', '017_auth_phone_and_verification', '018_verification_challenge_destination', '019_auth_otp_purposes_and_rate_limits', '020_required_verification_destination', '021_email_only_verification', '022_registration_otp_delivery_state', '023_complaint_address', '024_support_submission_status', '025_support_suggestions_workflow', '026_announcement_management', '027_officer_management']);
+  assert.deepEqual(migrateDatabase(fresh), ['001_core_schema', '002_civic_issues', '003_issue_assignments', '004_issue_grouping', '005_ward_team_management', '006_issue_team_assignments', '007_officer_workflow_evidence', '008_citizen_resolution_verification', '009_announcements', '010_announcement_visibility', '011_notifications', '012_profile_images', '013_citizen_preferences', '014_profile_support_password_reset', '015_citizen_verification', '016_account_lifecycle', '017_auth_phone_and_verification', '018_verification_challenge_destination', '019_auth_otp_purposes_and_rate_limits', '020_required_verification_destination', '021_email_only_verification', '022_registration_otp_delivery_state', '023_complaint_address', '024_support_submission_status', '025_support_suggestions_workflow', '026_announcement_management', '027_officer_management', '028_officer_inspections', '029_officer_work_progress', '030_officer_resolutions', '031_officer_notifications', '032_officer_action_plans']);
   assert.deepEqual(migrateDatabase(fresh), []);
-  assert.equal(fresh.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 27);
+  assert.equal(fresh.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 32);
   assert.ok(fresh.prepare('PRAGMA table_info(citizen_support_submissions)').all().some((column) => column.name === 'status'));
   assert.ok(fresh.prepare('PRAGMA table_info(citizen_support_submissions)').all().some((column) => column.name === 'admin_notes'));
   assert.ok(fresh.prepare('PRAGMA table_info(citizen_support_submissions)').all().some((column) => column.name === 'updated_at'));
@@ -46,6 +47,11 @@ test('fresh initialization applies each migration once and creates the full sche
   assert.ok(fresh.prepare('PRAGMA table_info(users)').all().some((column) => column.name === 'profile_image_key'));
   assert.ok(fresh.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='notifications'").get());
   assert.ok(fresh.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='civic_announcements'").get());
+  assert.ok(fresh.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='civic_issue_inspections'").get());
+  assert.ok(fresh.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='civic_issue_progress_updates'").get());
+  assert.ok(fresh.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='civic_issue_resolutions'").get());
+  assert.ok(fresh.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='civic_issue_action_plans'").get());
+  assert.ok(fresh.prepare('PRAGMA table_info(notifications)').all().some((column) => column.name === 'related_civic_issue_id'));
   assert.ok(fresh.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='user_verification_challenges'").get());
   assert.ok(fresh.prepare('PRAGMA table_info(user_verification_challenges)').all().some((column) => column.name === 'purpose'));
   const userColumns = fresh.prepare('PRAGMA table_info(users)').all().map((column) => column.name);
@@ -180,7 +186,7 @@ test('existing complaint, media, user and AI assessment data survive issue backf
     VALUES (31, 11, 'SUCCEEDED', 'ROAD_DAMAGE', 'Roads & Infrastructure', 'MEDIUM',
       'A reported road defect.', '[]', 0.8, 0, '')`).run();
 
-  assert.deepEqual(migrateDatabase(existing), ['001_core_schema', '002_civic_issues', '003_issue_assignments', '004_issue_grouping', '005_ward_team_management', '006_issue_team_assignments', '007_officer_workflow_evidence', '008_citizen_resolution_verification', '009_announcements', '010_announcement_visibility', '011_notifications', '012_profile_images', '013_citizen_preferences', '014_profile_support_password_reset', '015_citizen_verification', '016_account_lifecycle', '017_auth_phone_and_verification', '018_verification_challenge_destination', '019_auth_otp_purposes_and_rate_limits', '020_required_verification_destination', '021_email_only_verification', '022_registration_otp_delivery_state', '023_complaint_address', '024_support_submission_status', '025_support_suggestions_workflow', '026_announcement_management', '027_officer_management']);
+  assert.deepEqual(migrateDatabase(existing), ['001_core_schema', '002_civic_issues', '003_issue_assignments', '004_issue_grouping', '005_ward_team_management', '006_issue_team_assignments', '007_officer_workflow_evidence', '008_citizen_resolution_verification', '009_announcements', '010_announcement_visibility', '011_notifications', '012_profile_images', '013_citizen_preferences', '014_profile_support_password_reset', '015_citizen_verification', '016_account_lifecycle', '017_auth_phone_and_verification', '018_verification_challenge_destination', '019_auth_otp_purposes_and_rate_limits', '020_required_verification_destination', '021_email_only_verification', '022_registration_otp_delivery_state', '023_complaint_address', '024_support_submission_status', '025_support_suggestions_workflow', '026_announcement_management', '027_officer_management', '028_officer_inspections', '029_officer_work_progress', '030_officer_resolutions', '031_officer_notifications', '032_officer_action_plans']);
   assert.equal(existing.prepare('SELECT account_status FROM users WHERE id=1').get().account_status, 'ACTIVE');
   const linked = existing.prepare(`SELECT c.id, c.user_id, c.status, c.civic_issue_id, i.status AS issue_status
     FROM complaints c JOIN civic_issues i ON i.id = c.civic_issue_id WHERE c.id = 11`).get();
@@ -195,7 +201,7 @@ test('existing complaint, media, user and AI assessment data survive issue backf
 
   const issueCount = existing.prepare('SELECT COUNT(*) AS count FROM civic_issues').get().count;
   assert.deepEqual(migrateDatabase(existing), []);
-  assert.equal(existing.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 27);
+  assert.equal(existing.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 32);
   assert.equal(existing.prepare('SELECT COUNT(*) AS count FROM civic_issues').get().count, issueCount);
   assert.throws(() => existing.prepare('UPDATE complaints SET civic_issue_id = 999 WHERE id = 11').run());
   existing.close();
@@ -220,7 +226,7 @@ test('ward migration preserves existing individual assignment and append-only hi
     legacy.prepare('INSERT INTO schema_migrations(version) VALUES(?)').run(version);
   }
 
-  assert.deepEqual(migrateDatabase(legacy), ['005_ward_team_management', '006_issue_team_assignments', '007_officer_workflow_evidence', '008_citizen_resolution_verification', '009_announcements', '010_announcement_visibility', '011_notifications', '012_profile_images', '013_citizen_preferences', '014_profile_support_password_reset', '015_citizen_verification', '016_account_lifecycle', '017_auth_phone_and_verification', '018_verification_challenge_destination', '019_auth_otp_purposes_and_rate_limits', '020_required_verification_destination', '021_email_only_verification', '022_registration_otp_delivery_state', '023_complaint_address', '024_support_submission_status', '025_support_suggestions_workflow', '026_announcement_management', '027_officer_management']);
+  assert.deepEqual(migrateDatabase(legacy), ['005_ward_team_management', '006_issue_team_assignments', '007_officer_workflow_evidence', '008_citizen_resolution_verification', '009_announcements', '010_announcement_visibility', '011_notifications', '012_profile_images', '013_citizen_preferences', '014_profile_support_password_reset', '015_citizen_verification', '016_account_lifecycle', '017_auth_phone_and_verification', '018_verification_challenge_destination', '019_auth_otp_purposes_and_rate_limits', '020_required_verification_destination', '021_email_only_verification', '022_registration_otp_delivery_state', '023_complaint_address', '024_support_submission_status', '025_support_suggestions_workflow', '026_announcement_management', '027_officer_management', '028_officer_inspections', '029_officer_work_progress', '030_officer_resolutions', '031_officer_notifications', '032_officer_action_plans']);
   assert.equal(legacy.prepare('SELECT assigned_officer_id FROM civic_issues WHERE id=?').get(issueId).assigned_officer_id, 2);
   assert.deepEqual(legacy.prepare(`SELECT event_type,officer_id,admin_user_id
     FROM civic_issue_assignment_events WHERE civic_issue_id=?`).get(issueId), {
@@ -319,7 +325,12 @@ test('email-only migration preserves user records, phone data and email challeng
     '024_support_submission_status',
     '025_support_suggestions_workflow',
     '026_announcement_management',
-    '027_officer_management'
+    '027_officer_management',
+    '028_officer_inspections',
+    '029_officer_work_progress',
+    '030_officer_resolutions',
+    '031_officer_notifications',
+    '032_officer_action_plans'
   ]);
   assert.deepEqual(legacy.prepare(`SELECT id,display_name,email,phone_number,email_verified,account_status
     FROM users ORDER BY id`).all(), [
@@ -423,9 +434,11 @@ test('migration 025 resets legacy suggestion statuses and preserves bug report d
     VALUES ('NM-BUG-REJ', 1, 'BUG_REPORT', 'Profile image bug', 'PROFILE_ISSUE',
       'Uploading profile image fails with 500.', 'REJECTED', '2026-11-20T01:00:00.000Z')`).run();
 
-  // Step 3: Apply pending migrations 025-027 via migrateDatabase
+  // Step 3: Apply pending migrations 025-031 via migrateDatabase
   const applied = migrateDatabase(db025);
-  assert.deepEqual(applied, ['025_support_suggestions_workflow', '026_announcement_management', '027_officer_management']);
+  assert.deepEqual(applied, ['025_support_suggestions_workflow', '026_announcement_management',
+    '027_officer_management', '028_officer_inspections', '029_officer_work_progress',
+    '030_officer_resolutions', '031_officer_notifications', '032_officer_action_plans']);
 
   // Assert: Legacy RESOLVED suggestion → status=NEW, closed_at=null, rejection_reason=null
   const resolvedSugg = db025.prepare('SELECT status, closed_at, rejection_reason FROM citizen_support_submissions WHERE reference_id=?').get('NM-SUGG-RES');
@@ -493,8 +506,80 @@ test('migration 025 resets legacy suggestion statuses and preserves bug report d
   db025.close();
 });
 
+test('migration 031 preserves citizen notifications and validates Officer assignment notifications', () => {
+  const notificationsDb = new Database(':memory:');
+  notificationsDb.pragma('foreign_keys = ON');
+  notificationsDb.exec(`
+    CREATE TABLE users (
+      id INTEGER PRIMARY KEY,
+      role TEXT NOT NULL,
+      account_status TEXT NOT NULL,
+      notification_preferences TEXT NOT NULL DEFAULT '{"inApp":true}'
+    );
+    CREATE TABLE complaints (id INTEGER PRIMARY KEY);
+    CREATE TABLE civic_issues (
+      id INTEGER PRIMARY KEY,
+      assigned_team_id INTEGER,
+      status TEXT NOT NULL,
+      merged_into_issue_id INTEGER
+    );
+    CREATE TABLE wards (id INTEGER PRIMARY KEY, is_active INTEGER NOT NULL);
+    CREATE TABLE ward_teams (id INTEGER PRIMARY KEY, ward_id INTEGER NOT NULL, is_active INTEGER NOT NULL);
+    CREATE TABLE ward_team_memberships (
+      team_id INTEGER NOT NULL, officer_user_id INTEGER NOT NULL, removed_at TEXT
+    );
+    CREATE TABLE civic_issue_team_assignment_events (
+      id INTEGER PRIMARY KEY, civic_issue_id INTEGER NOT NULL, team_id INTEGER,
+      event_type TEXT NOT NULL, created_at TEXT NOT NULL
+    );
+    CREATE TABLE notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL CHECK (length(trim(title)) BETWEEN 1 AND 160),
+      message TEXT NOT NULL CHECK (length(trim(message)) BETWEEN 1 AND 2000),
+      notification_type TEXT NOT NULL CHECK (notification_type IN ('ISSUE_RESOLVED','DISPUTE_REVIEWED')),
+      related_complaint_id INTEGER REFERENCES complaints(id) ON DELETE CASCADE,
+      event_key TEXT NOT NULL,
+      is_read INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0,1)),
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      UNIQUE(user_id,event_key)
+    );
+    CREATE INDEX idx_notifications_user_created ON notifications(user_id,created_at DESC,id DESC);
+    CREATE INDEX idx_notifications_unread ON notifications(user_id,is_read,created_at DESC,id DESC);
+    INSERT INTO users(id,role,account_status) VALUES(1,'CITIZEN','ACTIVE'),(2,'OFFICER','ACTIVE');
+    INSERT INTO complaints(id) VALUES(10);
+    INSERT INTO civic_issues(id,assigned_team_id,status) VALUES(20,5,'OPEN');
+    INSERT INTO wards(id,is_active) VALUES(1,1);
+    INSERT INTO ward_teams(id,ward_id,is_active) VALUES(5,1,1);
+    INSERT INTO ward_team_memberships(team_id,officer_user_id) VALUES(5,2);
+    INSERT INTO civic_issue_team_assignment_events(id,civic_issue_id,team_id,event_type,created_at)
+      VALUES(30,20,5,'ASSIGNED','2026-01-01T00:00:00.000Z');
+    INSERT INTO notifications(id,user_id,title,message,notification_type,related_complaint_id,event_key,is_read,created_at)
+      VALUES(7,1,'Resolved','Your report was resolved.','ISSUE_RESOLVED',10,'legacy-event',1,'2026-01-02T00:00:00.000Z');
+  `);
+
+  officerNotificationsMigration.up(notificationsDb);
+  assert.deepEqual(notificationsDb.prepare(`SELECT id,user_id,title,message,notification_type,
+      related_complaint_id,related_civic_issue_id,event_key,is_read,created_at
+    FROM notifications`).get(), {
+    id: 7, user_id: 1, title: 'Resolved', message: 'Your report was resolved.',
+    notification_type: 'ISSUE_RESOLVED', related_complaint_id: 10,
+    related_civic_issue_id: null, event_key: 'legacy-event', is_read: 1,
+    created_at: '2026-01-02T00:00:00.000Z'
+  });
+  notificationsDb.prepare(`INSERT INTO notifications
+    (user_id,title,message,notification_type,related_civic_issue_id,event_key)
+    VALUES(2,'Assigned','Review issue 20.','ISSUE_ASSIGNED',20,'issue:20:assignment:30')`).run();
+  assert.throws(() => notificationsDb.prepare(`INSERT INTO notifications
+    (user_id,title,message,notification_type,related_civic_issue_id,event_key)
+    VALUES(1,'Invalid','Not an Officer','ISSUE_ASSIGNED',20,'invalid-event')`).run(),
+  /current active team member/);
+  assert.equal(notificationsDb.pragma('foreign_key_check').length, 0);
+  notificationsDb.close();
+});
+
 test('the shared startup database can be initialized repeatedly without reapplying migrations', () => {
-  assert.deepEqual(migrateDatabase(defaultDb), ['001_core_schema', '002_civic_issues', '003_issue_assignments', '004_issue_grouping', '005_ward_team_management', '006_issue_team_assignments', '007_officer_workflow_evidence', '008_citizen_resolution_verification', '009_announcements', '010_announcement_visibility', '011_notifications', '012_profile_images', '013_citizen_preferences', '014_profile_support_password_reset', '015_citizen_verification', '016_account_lifecycle', '017_auth_phone_and_verification', '018_verification_challenge_destination', '019_auth_otp_purposes_and_rate_limits', '020_required_verification_destination', '021_email_only_verification', '022_registration_otp_delivery_state', '023_complaint_address', '024_support_submission_status', '025_support_suggestions_workflow', '026_announcement_management', '027_officer_management']);
+  assert.deepEqual(migrateDatabase(defaultDb), ['001_core_schema', '002_civic_issues', '003_issue_assignments', '004_issue_grouping', '005_ward_team_management', '006_issue_team_assignments', '007_officer_workflow_evidence', '008_citizen_resolution_verification', '009_announcements', '010_announcement_visibility', '011_notifications', '012_profile_images', '013_citizen_preferences', '014_profile_support_password_reset', '015_citizen_verification', '016_account_lifecycle', '017_auth_phone_and_verification', '018_verification_challenge_destination', '019_auth_otp_purposes_and_rate_limits', '020_required_verification_destination', '021_email_only_verification', '022_registration_otp_delivery_state', '023_complaint_address', '024_support_submission_status', '025_support_suggestions_workflow', '026_announcement_management', '027_officer_management', '028_officer_inspections', '029_officer_work_progress', '030_officer_resolutions', '031_officer_notifications', '032_officer_action_plans']);
   assert.deepEqual(migrateDatabase(defaultDb), []);
-  assert.equal(defaultDb.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 27);
+  assert.equal(defaultDb.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 32);
 });

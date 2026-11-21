@@ -200,6 +200,7 @@ export function listCivicIssues({ limit, offset, status, department, category, w
     params.push(searchPattern, searchPattern);
   }
   params.push(limit + 1, offset);
+  const whereClause = conditions.length ? conditions.join(' AND ') : '1=1';
   const rows = db.prepare(`
     SELECT i.id, i.status, i.merged_into_issue_id, i.assigned_officer_id, i.assigned_team_id, i.routing_department,
            i.created_at, i.updated_at,
@@ -219,7 +220,7 @@ export function listCivicIssues({ limit, offset, status, department, category, w
     LEFT JOIN users officer ON officer.id = i.assigned_officer_id
     LEFT JOIN ward_teams team ON team.id = i.assigned_team_id
     LEFT JOIN wards ward ON ward.id = team.ward_id
-    WHERE ${conditions.join(' AND ')}
+    WHERE ${whereClause}
     ORDER BY i.updated_at DESC, i.id DESC
     LIMIT ? OFFSET ?
   `).all(...params);

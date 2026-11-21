@@ -309,9 +309,7 @@ export default function Complaints() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9a7832]">Civic service</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#20382a]">Complaints management</h1>
-        <p className="mt-2 text-sm leading-6 text-[#68736a]">Review reported issues, citizen submissions, assessments, locations, and team routing.</p>
+        <h1 className="mt-2 text-sm leading-6 tracking-[0.16em] text-[#9a7832]">Review reported issues, citizen submissions, assessments, locations, and team routing.</h1>
       </header>
 
       <section className="rounded-2xl border border-[#e5e2d5] bg-white p-4 shadow-sm sm:p-5">
@@ -370,7 +368,7 @@ export default function Complaints() {
                     <p className="mt-1 text-xs text-[#68736a]">Updated {formatDate(issue.updatedAt)}{issue.aiAssessmentSummary?.latestSuccessfulComplaintAssessment ? ` · Latest AI severity: ${humanize(issue.aiAssessmentSummary.latestSuccessfulComplaintAssessment.severity)}` : ''}</p>
                   </div>
                   <button type="button" onClick={() => setSelectedId(issue.id)} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1d4933] px-4 text-sm font-semibold text-white hover:bg-[#163b29]">
-                    <Eye className="h-4 w-4" aria-hidden="true" /> Review
+                    <Eye className="h-4 w-4" aria-hidden="true" /> review
                   </button>
                 </li>
               ))}

@@ -47,17 +47,22 @@ function hasOtpSecret() {
   return isConfigured(env.OTP_SECRET) && env.OTP_SECRET.length >= 32 && env.OTP_SECRET !== env.JWT_SECRET;
 }
 
+
 export function getVerificationAvailability() {
   const emailMissingConfiguration = [
-    !isConfigured(env.EMAIL_USER) && 'EMAIL_USER',
-    !isConfigured(env.EMAIL_PASS) && 'EMAIL_PASS',
-    (!env.EMAIL_PASS || env.EMAIL_PASS.replace(/\s/g, '').length !== 16) && '16-character EMAIL_PASS',
+    !isConfigured(env.BREVO_API_KEY) && 'BREVO_API_KEY',
+    !isConfigured(env.BREVO_SENDER_EMAIL) && 'BREVO_SENDER_EMAIL',
     !hasOtpSecret() && 'a distinct OTP_SECRET of at least 32 characters'
   ].filter(Boolean);
+
   return {
-    email: { available: emailMissingConfiguration.length === 0, missingConfiguration: emailMissingConfiguration }
+    email: {
+      available: emailMissingConfiguration.length === 0,
+      missingConfiguration: emailMissingConfiguration
+    }
   };
 }
+
 
 function hashCode(userId, channel, purpose, code) {
   if (!hasOtpSecret()) throw new VerificationError('OTP security is not configured', 503);

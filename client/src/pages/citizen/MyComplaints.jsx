@@ -55,11 +55,10 @@ export default function MyComplaints() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9a7832]">Citizen space</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#20382a]">My complaints</h1>
-          <p className="mt-2 text-sm text-[#68736a]">Track the reports you have submitted to your local civic team.</p>
+          <p className="text-xl font-semibold uppercase tracking-[0.16em] text-[#9a7832]">Track your reports</p>
+
+          <p className="mt-2 text-sm text-[#68736a]">Your Contributions are very much important to the Society</p>
         </div>
-        <Link to="/citizen/complaints/new" className="inline-flex min-h-11 items-center rounded-xl bg-[#1d4933] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#163b29] focus:outline-none focus:ring-4 focus:ring-[#477454]/25">Report a complaint</Link>
       </div>
 
       {error && complaints.length === 0 ? (

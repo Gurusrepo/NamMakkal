@@ -104,8 +104,7 @@ export const officerListQuerySchema = z.object({
 export const createOfficerSchema = z.object({
   displayName: z.string().trim().min(1).max(100),
   email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
-  employeeId: z.string().trim().min(1).max(64)
-    .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/).transform((value) => value.toUpperCase()),
+  wardId: z.number().int().positive(),
   teamIds: z.array(z.number().int().positive()).min(1).max(20)
     .refine((ids) => new Set(ids).size === ids.length, 'Team IDs must be unique')
 }).strict();

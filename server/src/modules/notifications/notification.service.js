@@ -6,6 +6,7 @@ const mapNotification = (row) => ({
   message: row.message,
   notificationType: row.notification_type,
   relatedComplaintId: row.related_complaint_id,
+  relatedCivicIssueId: row.related_civic_issue_id,
   isRead: Boolean(row.is_read),
   createdAt: row.created_at
 });
@@ -25,17 +26,30 @@ function issueDisputers(issueId) {
     GROUP BY c.user_id`).all(issueId);
 }
 
+function assignedTeamOfficers(issueId, assignmentEventId) {
+  return db.prepare(`SELECT u.id AS user_id,i.id AS civic_issue_id
+    FROM civic_issues i
+    JOIN civic_issue_team_assignment_events a ON a.id=? AND a.civic_issue_id=i.id
+      AND a.team_id=i.assigned_team_id AND a.event_type IN ('ASSIGNED','REASSIGNED')
+    JOIN ward_teams t ON t.id=i.assigned_team_id AND t.is_active=1
+    JOIN wards w ON w.id=t.ward_id AND w.is_active=1
+    JOIN ward_team_memberships m ON m.team_id=t.id AND m.removed_at IS NULL
+    JOIN users u ON u.id=m.officer_user_id AND u.role='OFFICER' AND u.account_status='ACTIVE'
+    WHERE i.id=? AND i.status<>'MERGED' AND i.merged_into_issue_id IS NULL`)
+    .all(assignmentEventId, issueId);
+}
+
 function createForRecipients(recipients, { eventKey, notificationType, title, message }) {
   const insert = db.prepare(`INSERT INTO notifications
-    (user_id,title,message,notification_type,related_complaint_id,event_key)
-    VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,event_key) DO NOTHING`);
+    (user_id,title,message,notification_type,related_complaint_id,related_civic_issue_id,event_key)
+    VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id,event_key) DO NOTHING`);
   const getPreference = db.prepare('SELECT notification_preferences FROM users WHERE id=?');
   let created = 0;
   for (const recipient of recipients) {
     const preferences = JSON.parse(getPreference.get(recipient.user_id)?.notification_preferences ?? '{"inApp":true}');
     if (preferences.inApp === false) continue;
     created += insert.run(recipient.user_id, title, message, notificationType,
-      recipient.complaint_id, eventKey).changes;
+      recipient.complaint_id ?? null, recipient.civic_issue_id ?? null, eventKey).changes;
   }
   return created;
 }
@@ -48,9 +62,19 @@ export function notifyDisputingReporters(issueId, notification) {
   return createForRecipients(issueDisputers(issueId), notification);
 }
 
+export function notifyAssignedTeam(issueId, assignmentEventId) {
+  return createForRecipients(assignedTeamOfficers(issueId, assignmentEventId), {
+    eventKey: `issue:${issueId}:assignment:${assignmentEventId}`,
+    notificationType: 'ISSUE_ASSIGNED',
+    title: 'A civic issue has been assigned to your team',
+    message: `Civic issue #${issueId} is now assigned to your team. Review the complaint details and location.`
+  });
+}
+
 export function listNotifications(userId, { limit, offset, unreadOnly }) {
   const where = unreadOnly ? 'user_id=? AND is_read=0' : 'user_id=?';
-  const rows = db.prepare(`SELECT id,title,message,notification_type,related_complaint_id,is_read,created_at
+  const rows = db.prepare(`SELECT id,title,message,notification_type,related_complaint_id,
+      related_civic_issue_id,is_read,created_at
     FROM notifications WHERE ${where} ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?`)
     .all(userId, limit + 1, offset);
   const hasMore = rows.length > limit;
@@ -68,7 +92,8 @@ export function getUnreadCount(userId) {
 export function markNotificationRead(userId, notificationId) {
   db.prepare('UPDATE notifications SET is_read=1 WHERE id=? AND user_id=?')
     .run(notificationId, userId);
-  const row = db.prepare(`SELECT id,title,message,notification_type,related_complaint_id,is_read,created_at
+  const row = db.prepare(`SELECT id,title,message,notification_type,related_complaint_id,
+      related_civic_issue_id,is_read,created_at
     FROM notifications WHERE id=? AND user_id=?`).get(notificationId, userId);
   return row ? mapNotification(row) : null;
 }

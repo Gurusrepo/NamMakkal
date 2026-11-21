@@ -40,7 +40,7 @@ export default function ReportComplaint() {
   const [address, setAddress] = useState('');
   const [isResolvingAddress, setIsResolvingAddress] = useState(false);
   const [addressError, setAddressError] = useState('');
-  
+
   const [photo, setPhoto] = useState(null);
   const [photoError, setPhotoError] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
@@ -284,12 +284,10 @@ export default function ReportComplaint() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-[#9a7832]">
+        <p className="mt-5 text-xl font-semibold uppercase tracking-[0.16em] text-[#9a7832]">
           Make your neighbourhood better
         </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#20382a]">
-          Report a complaint
-        </h1>
+
         <p className="mt-2 text-sm leading-6 text-[#68736a]">
           Add clear details, where the issue is, and a photo. Your report will be linked to your account.
         </p>

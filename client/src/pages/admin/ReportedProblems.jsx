@@ -11,7 +11,6 @@ import {
 } from '../../api/admin.js';
 import { getApiErrorMessage } from '../../api/errors.js';
 import { EmptyState, ErrorState, LoadingState } from '../../components/AsyncState.jsx';
-import { useTranslation } from '../../i18n/LocaleProvider.jsx';
 
 const PAGE_LIMIT = 15;
 
@@ -48,19 +47,40 @@ const CATEGORIES = [
 
 const STATUSES = ['NEW', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'];
 
-function formatDate(value, locale) {
+const CATEGORY_LABELS = {
+  LOGIN_ISSUE: 'Login issue',
+  PROFILE_ISSUE: 'Profile issue',
+  TECHNICAL_ERROR: 'Technical error',
+  UI_DESIGN: 'UI / Design',
+  OTHER: 'Other'
+};
+
+const STATUS_LABELS = {
+  NEW: 'New',
+  IN_PROGRESS: 'In progress',
+  RESOLVED: 'Resolved',
+  REJECTED: 'Rejected'
+};
+
+function getCategoryLabel(category) {
+  return CATEGORY_LABELS[category] || 'Other';
+}
+
+function getStatusLabel(status) {
+  return STATUS_LABELS[status] || 'Unknown status';
+}
+
+function formatDate(value) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat('en-US', {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(date);
 }
 
 export default function ReportedProblems() {
-  const { locale, t } = useTranslation();
-
   // Filter state
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -114,7 +134,7 @@ export default function ReportedProblems() {
       })
       .catch((err) => {
         if (!active) return;
-        setLoadError(getApiErrorMessage(err, t('admin.reportedProblems.loadError')));
+        setLoadError(getApiErrorMessage(err, 'Reported problems could not be loaded.'));
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -123,7 +143,7 @@ export default function ReportedProblems() {
     return () => {
       active = false;
     };
-  }, [statusFilter, categoryFilter, searchQuery, offset, refreshTrigger, t]);
+  }, [statusFilter, categoryFilter, searchQuery, offset, refreshTrigger]);
 
   // Fetch single problem details when modal opens
   useEffect(() => {
@@ -150,7 +170,7 @@ export default function ReportedProblems() {
       })
       .catch((err) => {
         if (!active) return;
-        setDetailError(getApiErrorMessage(err, t('admin.reportedProblems.detailLoadError')));
+        setDetailError(getApiErrorMessage(err, 'Failed to load problem details.'));
       })
       .finally(() => {
         if (active) setIsDetailLoading(false);
@@ -159,7 +179,7 @@ export default function ReportedProblems() {
     return () => {
       active = false;
     };
-  }, [selectedReference, t]);
+  }, [selectedReference]);
 
   // Handle status update submission
   async function handleStatusSubmit(e) {
@@ -179,7 +199,7 @@ export default function ReportedProblems() {
       setDetailData(updated);
       setEditStatus(updated.status);
       setEditNotes(updated.adminNotes || '');
-      setSaveSuccess(t('admin.reportedProblems.updateSuccess'));
+      setSaveSuccess('Problem status and notes updated successfully.');
 
       // Update in items list without full refetch
       setItems((prev) =>
@@ -196,7 +216,7 @@ export default function ReportedProblems() {
         )
       );
     } catch (err) {
-      setSaveError(getApiErrorMessage(err, t('admin.reportedProblems.updateError')));
+      setSaveError(getApiErrorMessage(err, 'Failed to update problem status.'));
     } finally {
       setIsSaving(false);
     }
@@ -219,39 +239,16 @@ export default function ReportedProblems() {
       {/* Page Header */}
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9a7832]">
-            {t('admin.reportedProblems.eyebrow')}
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#20382a] sm:text-3xl">
-            {t('admin.reportedProblems.title')}
-          </h1>
-          <p className="mt-1 text-sm text-[#68736a]">
-            {t('admin.reportedProblems.intro')}
+          <p className="mt-1 text-sm tracking-[0.16em]  text-[#9a7832]">
+            Review, investigate, and update citizen technical issues and bug reports.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d9ded5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#20382a] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[#1d4933]" />
-            {t('admin.reportedProblems.pageInfo', {
-              from: startIdx,
-              to: endIdx,
-              total: totalCount
-            })}
-          </span>
-          <button
-            type="button"
-            onClick={() => setRefreshTrigger((c) => c + 1)}
-            aria-label={t('admin.reportedProblems.retry')}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#d9ded5] bg-white text-[#20382a] transition hover:bg-[#f7f8f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#477454]"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        </div>
+
       </header>
 
       {/* Filter and Search Bar */}
       <section
-        aria-label={t('admin.reportedProblems.filterStatus')}
+        aria-label="Status"
         className="rounded-2xl border border-[#e5e2d5] bg-white p-4 shadow-sm"
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -265,7 +262,7 @@ export default function ReportedProblems() {
                 setSearchQuery(e.target.value);
                 setOffset(0);
               }}
-              placeholder={t('admin.reportedProblems.searchPlaceholder')}
+              placeholder="Search by reference ID or title..."
               className="h-11 w-full rounded-xl border border-[#d9ded5] bg-[#fafaf7] pl-10 pr-4 text-sm text-[#20382a] placeholder-[#758077] outline-none transition focus:border-[#477454] focus:bg-white focus:ring-4 focus:ring-[#477454]/10"
             />
           </div>
@@ -278,13 +275,13 @@ export default function ReportedProblems() {
                 setStatusFilter(e.target.value);
                 setOffset(0);
               }}
-              aria-label={t('admin.reportedProblems.filterStatus')}
+              aria-label="Status"
               className="h-11 w-full rounded-xl border border-[#d9ded5] bg-[#fafaf7] px-3 text-sm text-[#20382a] outline-none transition focus:border-[#477454] focus:bg-white focus:ring-4 focus:ring-[#477454]/10"
             >
-              <option value="">{t('admin.reportedProblems.allStatuses')}</option>
+              <option value="">All statuses</option>
               {STATUSES.map((st) => (
                 <option key={st} value={st}>
-                  {t(`admin.reportedProblems.statuses.${st}`)}
+                  {getStatusLabel(st)}
                 </option>
               ))}
             </select>
@@ -298,13 +295,13 @@ export default function ReportedProblems() {
                 setCategoryFilter(e.target.value);
                 setOffset(0);
               }}
-              aria-label={t('admin.reportedProblems.filterCategory')}
+              aria-label="Category"
               className="h-11 w-full rounded-xl border border-[#d9ded5] bg-[#fafaf7] px-3 text-sm text-[#20382a] outline-none transition focus:border-[#477454] focus:bg-white focus:ring-4 focus:ring-[#477454]/10"
             >
-              <option value="">{t('admin.reportedProblems.allCategories')}</option>
+              <option value="">All categories</option>
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
-                  {t(`admin.reportedProblems.categories.${cat}`)}
+                  {getCategoryLabel(cat)}
                 </option>
               ))}
             </select>
@@ -319,12 +316,12 @@ export default function ReportedProblems() {
                 className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-[#d9ded5] bg-[#f7f8f5] px-4 text-sm font-semibold text-[#20382a] transition hover:bg-[#eceee8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#477454]"
               >
                 <X className="h-4 w-4" />
-                {t('admin.reportedProblems.clearFilters')}
+                Clear filters
               </button>
             ) : (
               <div className="flex items-center gap-2 text-xs text-[#758077]">
                 <Filter className="h-4 w-4" />
-                <span>{t('admin.reportedProblems.allStatuses')}</span>
+                <span>All statuses</span>
               </div>
             )}
           </div>
@@ -333,7 +330,7 @@ export default function ReportedProblems() {
 
       {/* Main List Section */}
       {isLoading ? (
-        <LoadingState>{t('admin.reportedProblems.loading')}</LoadingState>
+        <LoadingState>Loading reported problems...</LoadingState>
       ) : loadError ? (
         <ErrorState onRetry={() => setRefreshTrigger((c) => c + 1)}>
           {loadError}
@@ -343,12 +340,12 @@ export default function ReportedProblems() {
           <div className="text-center">
             <p className="font-semibold text-[#20382a]">
               {hasActiveFilters
-                ? t('admin.reportedProblems.emptyTitle')
-                : t('admin.reportedProblems.emptyAll')}
+                ? 'No reported problems found'
+                : 'No citizen bug reports have been submitted yet.'}
             </p>
             {hasActiveFilters && (
               <p className="mt-1 text-sm text-[#758077]">
-                {t('admin.reportedProblems.emptyDescription')}
+                No bug reports match your filter criteria.
               </p>
             )}
             {hasActiveFilters && (
@@ -357,7 +354,7 @@ export default function ReportedProblems() {
                 onClick={handleFilterReset}
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#1d4933] px-4 py-2 text-sm font-semibold text-white hover:bg-[#163b29]"
               >
-                {t('admin.reportedProblems.clearFilters')}
+                Clear filters
               </button>
             )}
           </div>
@@ -369,25 +366,25 @@ export default function ReportedProblems() {
               <thead className="border-b border-[#e5e2d5] bg-[#f7f8f5] text-xs font-semibold uppercase tracking-wider text-[#758077]">
                 <tr>
                   <th scope="col" className="px-5 py-3.5">
-                    {t('admin.reportedProblems.tableReference')}
+                    Reference
                   </th>
                   <th scope="col" className="px-5 py-3.5">
-                    {t('admin.reportedProblems.tableProblem')}
+                    Problem
                   </th>
                   <th scope="col" className="px-5 py-3.5">
-                    {t('admin.reportedProblems.tableCategory')}
+                    Category
                   </th>
                   <th scope="col" className="px-5 py-3.5">
-                    {t('admin.reportedProblems.tableReporter')}
+                    Reporter
                   </th>
                   <th scope="col" className="px-5 py-3.5">
-                    {t('admin.reportedProblems.tableStatus')}
+                    Status
                   </th>
                   <th scope="col" className="px-5 py-3.5">
-                    {t('admin.reportedProblems.tableDate')}
+                    Submitted
                   </th>
                   <th scope="col" className="px-5 py-3.5 text-right">
-                    {t('admin.reportedProblems.tableAction')}
+                    Action
                   </th>
                 </tr>
               </thead>
@@ -414,7 +411,7 @@ export default function ReportedProblems() {
                           </p>
                           {item.hasScreenshot && (
                             <span
-                              title={t('admin.reportedProblems.hasAttachment')}
+                              title="Screenshot attached"
                               className="shrink-0 text-[#1d4933]"
                             >
                               <Paperclip className="h-3.5 w-3.5" />
@@ -429,7 +426,7 @@ export default function ReportedProblems() {
                       {/* Category */}
                       <td className="whitespace-nowrap px-5 py-4">
                         <span className="inline-flex rounded-lg border border-[#e5e2d5] bg-stone-50 px-2.5 py-1 text-xs font-medium text-stone-700">
-                          {t(`admin.reportedProblems.categories.${item.category}`)}
+                          {getCategoryLabel(item.category)}
                         </span>
                       </td>
 
@@ -449,13 +446,13 @@ export default function ReportedProblems() {
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cfg.bg}`}
                         >
                           <span className={`h-1.5 w-1.5 rounded-full ${cfg.dot}`} />
-                          {t(`admin.reportedProblems.statuses.${item.status}`)}
+                          {getStatusLabel(item.status)}
                         </span>
                       </td>
 
                       {/* Submitted Date */}
                       <td className="whitespace-nowrap px-5 py-4 text-xs text-[#758077]">
-                        {formatDate(item.createdAt, locale)}
+                        {formatDate(item.createdAt)}
                       </td>
 
                       {/* Action */}
@@ -466,7 +463,7 @@ export default function ReportedProblems() {
                           className="inline-flex items-center gap-1.5 rounded-xl bg-[#1d4933] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#163b29] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#477454]"
                         >
                           <Eye className="h-3.5 w-3.5" />
-                          {t('admin.reportedProblems.viewDetails')}
+                          view
                         </button>
                       </td>
                     </tr>
@@ -479,11 +476,7 @@ export default function ReportedProblems() {
           {/* Pagination Controls */}
           <div className="flex flex-col gap-3 border-t border-[#e5e2d5] bg-[#f7f8f5] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-[#758077]">
-              {t('admin.reportedProblems.pageInfo', {
-                from: startIdx,
-                to: endIdx,
-                total: totalCount
-              })}
+              Showing {startIdx} - {endIdx} of {totalCount} problems
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -493,7 +486,7 @@ export default function ReportedProblems() {
                 className="inline-flex h-9 items-center gap-1 rounded-xl border border-[#d9ded5] bg-white px-3 text-xs font-semibold text-[#20382a] transition hover:bg-[#f7f8f5] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ChevronLeft className="h-4 w-4" />
-                {t('admin.reportedProblems.paginationPrevious')}
+                Previous
               </button>
               <button
                 type="button"
@@ -501,7 +494,7 @@ export default function ReportedProblems() {
                 onClick={() => setOffset((cur) => cur + PAGE_LIMIT)}
                 className="inline-flex h-9 items-center gap-1 rounded-xl border border-[#d9ded5] bg-white px-3 text-xs font-semibold text-[#20382a] transition hover:bg-[#f7f8f5] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {t('admin.reportedProblems.paginationNext')}
+                Next
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
@@ -528,13 +521,13 @@ export default function ReportedProblems() {
                   id="problem-detail-title"
                   className="text-base font-semibold text-[#20382a]"
                 >
-                  {t('admin.reportedProblems.detailTitle')}
+                  Problem details
                 </h2>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedReference(null)}
-                aria-label={t('admin.reportedProblems.close')}
+                aria-label="Close"
                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#758077] hover:bg-[#e5e2d5] hover:text-[#20382a]"
               >
                 <X className="h-5 w-5" />
@@ -544,7 +537,7 @@ export default function ReportedProblems() {
             {/* Modal Body */}
             <div className="max-h-[75vh] overflow-y-auto p-6 space-y-6">
               {isDetailLoading ? (
-                <LoadingState>{t('admin.reportedProblems.loading')}</LoadingState>
+                <LoadingState>Loading reported problems...</LoadingState>
               ) : detailError ? (
                 <ErrorState>{detailError}</ErrorState>
               ) : detailData ? (
@@ -553,15 +546,11 @@ export default function ReportedProblems() {
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e5e2d5] bg-[#fafaf7] p-4">
                     <div>
                       <p className="text-xs text-[#758077]">
-                        {t('admin.reportedProblems.submittedOn', {
-                          date: formatDate(detailData.createdAt, locale)
-                        })}
+                        Submitted on {formatDate(detailData.createdAt)}
                       </p>
                       {detailData.closedAt && (
                         <p className="mt-0.5 text-xs font-medium text-emerald-800">
-                          {t('admin.reportedProblems.closedOn', {
-                            date: formatDate(detailData.closedAt, locale)
-                          })}
+                          Closed on: {formatDate(detailData.closedAt)}
                         </p>
                       )}
                     </div>
@@ -577,7 +566,7 @@ export default function ReportedProblems() {
                           STATUS_CONFIG.NEW.dot
                         }`}
                       />
-                      {t(`admin.reportedProblems.statuses.${detailData.status}`)}
+                      {getStatusLabel(detailData.status)}
                     </span>
                   </div>
 
@@ -588,14 +577,12 @@ export default function ReportedProblems() {
                         {detailData.title}
                       </h3>
                       <span className="shrink-0 rounded-lg border border-[#e5e2d5] bg-stone-50 px-2.5 py-1 text-xs font-medium text-stone-700">
-                        {t(
-                          `admin.reportedProblems.categories.${detailData.category}`
-                        )}
+                        {getCategoryLabel(detailData.category)}
                       </span>
                     </div>
                     <div>
                       <h4 className="text-xs font-semibold uppercase tracking-wider text-[#758077]">
-                        {t('admin.reportedProblems.description')}
+                        Description
                       </h4>
                       <p className="mt-1.5 whitespace-pre-wrap rounded-xl border border-[#f0eee6] bg-[#fafaf7] p-3.5 text-sm leading-6 text-[#20382a]">
                         {detailData.description}
@@ -606,14 +593,14 @@ export default function ReportedProblems() {
                   {/* Screenshot Section */}
                   <div className="space-y-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-[#758077]">
-                      {t('admin.reportedProblems.screenshotTitle')}
+                      Attached screenshot
                     </h4>
                     {detailData.screenshotUrl ? (
                       <div className="rounded-2xl border border-[#e5e2d5] bg-[#fafaf7] p-3">
                         <div className="relative overflow-hidden rounded-xl bg-black/5">
                           <img
                             src={detailData.screenshotUrl}
-                            alt={t('admin.reportedProblems.screenshotTitle')}
+                            alt="Attached screenshot"
                             className="max-h-64 w-full object-contain cursor-pointer transition hover:opacity-95"
                             onClick={() => setShowLightbox(true)}
                           />
@@ -626,13 +613,13 @@ export default function ReportedProblems() {
                             className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#1d4933] underline underline-offset-4 hover:text-[#163b29]"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
-                            {t('admin.reportedProblems.viewFullImage')}
+                            View full screenshot
                           </a>
                         </div>
                       </div>
                     ) : (
                       <p className="rounded-xl border border-dashed border-[#d9ded5] p-4 text-center text-xs text-[#758077]">
-                        {t('admin.reportedProblems.noScreenshot')}
+                        No screenshot attached with this submission.
                       </p>
                     )}
                   </div>
@@ -640,7 +627,7 @@ export default function ReportedProblems() {
                   {/* Reporter Information */}
                   <div className="rounded-2xl border border-[#e5e2d5] bg-[#f7f8f5] p-4 space-y-2">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-[#758077]">
-                      {t('admin.reportedProblems.reporterInfo')}
+                      Reporter information
                     </h4>
                     <div className="grid gap-2 text-sm sm:grid-cols-3">
                       <div className="flex items-center gap-2">
@@ -673,7 +660,7 @@ export default function ReportedProblems() {
                           </a>
                         ) : (
                           <span className="text-xs text-[#758077]">
-                            {t('admin.reportedProblems.noPhone')}
+                            No phone number provided
                           </span>
                         )}
                       </div>
@@ -688,7 +675,7 @@ export default function ReportedProblems() {
                     <div className="flex items-center gap-2">
                       <MessageSquare className="h-4 w-4 text-[#9a7832]" />
                       <h4 className="text-sm font-semibold text-[#20382a]">
-                        {t('admin.reportedProblems.updateStatusTitle')}
+                        Update status &amp; internal notes
                       </h4>
                     </div>
 
@@ -698,7 +685,7 @@ export default function ReportedProblems() {
                         htmlFor="problem-status-select"
                         className="mb-1.5 block text-xs font-semibold text-[#34483a]"
                       >
-                        {t('admin.reportedProblems.statusLabel')}
+                        Problem status
                       </label>
                       <select
                         id="problem-status-select"
@@ -708,7 +695,7 @@ export default function ReportedProblems() {
                       >
                         {STATUSES.map((st) => (
                           <option key={st} value={st}>
-                            {t(`admin.reportedProblems.statuses.${st}`)}
+                            {getStatusLabel(st)}
                           </option>
                         ))}
                       </select>
@@ -720,7 +707,7 @@ export default function ReportedProblems() {
                         htmlFor="problem-admin-notes"
                         className="mb-1.5 block text-xs font-semibold text-[#34483a]"
                       >
-                        {t('admin.reportedProblems.adminNotesLabel')}
+                        Internal admin notes (not visible to citizens)
                       </label>
                       <textarea
                         id="problem-admin-notes"
@@ -728,7 +715,7 @@ export default function ReportedProblems() {
                         maxLength={5000}
                         value={editNotes}
                         onChange={(e) => setEditNotes(e.target.value)}
-                        placeholder={t('admin.reportedProblems.adminNotesPlaceholder')}
+                        placeholder="Add private investigation notes, root causes, or resolution details..."
                         className="w-full rounded-xl border border-[#d9ded5] bg-white p-3 text-sm text-[#20382a] placeholder-[#758077] outline-none focus:border-[#477454] focus:ring-4 focus:ring-[#477454]/10"
                       />
                       <p className="mt-1 text-right text-xs text-[#758077]">
@@ -762,8 +749,8 @@ export default function ReportedProblems() {
                         className="inline-flex min-h-10 items-center justify-center rounded-xl bg-[#1d4933] px-5 text-sm font-semibold text-white transition hover:bg-[#163b29] disabled:cursor-wait disabled:opacity-60"
                       >
                         {isSaving
-                          ? t('admin.reportedProblems.saving')
-                          : t('admin.reportedProblems.saveChanges')}
+                          ? 'Saving...'
+                          : 'Save changes'}
                       </button>
                     </div>
                   </form>
@@ -790,7 +777,7 @@ export default function ReportedProblems() {
               type="button"
               onClick={() => setShowLightbox(false)}
               className="absolute -top-10 right-0 text-white hover:text-stone-300"
-              aria-label={t('admin.reportedProblems.close')}
+              aria-label="Close"
             >
               <X className="h-6 w-6" />
             </button>

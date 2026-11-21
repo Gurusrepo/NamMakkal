@@ -12,8 +12,8 @@ process.env.OTP_SECRET = 'verification-config-otp-secret-distinct-from-jwt';
 process.env.CORS_ORIGINS = 'http://localhost:3000';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'test-key';
-process.env.EMAIL_USER = '';
-process.env.EMAIL_PASS = '';
+process.env.BREVO_API_KEY = '';
+process.env.BREVO_SENDER_EMAIL = '';
 const { db, closeDatabase } = await import('../src/config/database.js');
 const { migrateDatabase } = await import('../src/database/migrate.js');
 migrateDatabase(db);
@@ -44,7 +44,7 @@ after(async () => {
   fs.rmSync(tempDirectory, { recursive: true, force: true });
 });
 
-test('registration refuses to create an account when Gmail SMTP configuration is missing', async () => {
+test('registration refuses to create an account when Brevo configuration is missing', async () => {
   const registration = await request('/api/auth/register', {
     method: 'POST',
     body: {
@@ -53,6 +53,6 @@ test('registration refuses to create an account when Gmail SMTP configuration is
     }
   });
   assert.equal(registration.status, 503);
-  assert.match((await registration.json()).error, /EMAIL_USER.*EMAIL_PASS/);
+  assert.match((await registration.json()).error, /BREVO_API_KEY.*BREVO_SENDER_EMAIL/);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 0);
 });

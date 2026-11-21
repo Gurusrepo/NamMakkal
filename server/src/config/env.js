@@ -1,3 +1,4 @@
+
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
@@ -13,10 +14,21 @@ const schema = z.object({
   SEED_EMAIL: z.string().optional(),
   SEED_PASSWORD: z.string().optional(),
   SEED_ROLE: z.enum(['OFFICER', 'ADMIN']).default('OFFICER'),
-  EMAIL_USER: z.preprocess((value) => value === '' ? undefined : value,
-    z.string().trim().email('EMAIL_USER must be a valid Gmail address').optional()),
-  EMAIL_PASS: z.preprocess((value) => value === '' ? undefined : value, z.string().optional()),
-  OTP_SECRET: z.preprocess((value) => value === '' ? undefined : value, z.string().optional()),
+
+  BREVO_API_KEY: z.preprocess(
+    (value) => value === '' ? undefined : value,
+    z.string().trim().optional()
+  ),
+  BREVO_SENDER_EMAIL: z.preprocess(
+    (value) => value === '' ? undefined : value,
+    z.string().trim().email('BREVO_SENDER_EMAIL must be a valid email').optional()
+  ),
+
+  OTP_SECRET: z.preprocess(
+    (value) => value === '' ? undefined : value,
+    z.string().optional()
+  ),
+
   CITIZEN_ELIGIBILITY_MIN_AGE: z.coerce.number().int().min(0).max(120).default(18),
   SENIOR_CITIZEN_MIN_AGE: z.coerce.number().int().min(0).max(120).default(60),
   SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
@@ -26,33 +38,38 @@ const schema = z.object({
 });
 
 const parsed = schema.safeParse(process.env);
+
 if (!parsed.success) {
-  const details = parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
+  const details = parsed.error.issues
+    .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+    .join('; ');
   throw new Error(`Invalid server environment: ${details}`);
 }
+
 if (parsed.data.SENIOR_CITIZEN_MIN_AGE < parsed.data.CITIZEN_ELIGIBILITY_MIN_AGE) {
   throw new Error('Invalid server environment: SENIOR_CITIZEN_MIN_AGE must not be below CITIZEN_ELIGIBILITY_MIN_AGE');
 }
-const hasEmailUser = Boolean(parsed.data.EMAIL_USER);
-const emailPassword = parsed.data.EMAIL_PASS?.replace(/\s/g, '') ?? '';
-if (hasEmailUser !== Boolean(emailPassword)) {
-  throw new Error('Invalid server environment: configure both EMAIL_USER and EMAIL_PASS');
-}
-if (emailPassword && emailPassword.length !== 16) {
-  throw new Error('Invalid server environment: EMAIL_PASS must be a 16-character Gmail App Password');
-}
+
 if (parsed.data.OTP_SECRET && parsed.data.OTP_SECRET.length < 32) {
   throw new Error('Invalid server environment: OTP_SECRET must contain at least 32 characters');
 }
+
 if (parsed.data.OTP_SECRET && parsed.data.OTP_SECRET === parsed.data.JWT_SECRET) {
   throw new Error('Invalid server environment: OTP_SECRET must be different from JWT_SECRET');
 }
-if (parsed.data.NODE_ENV === 'production' &&
-    (!hasEmailUser || !emailPassword || !parsed.data.OTP_SECRET)) {
-  throw new Error('Invalid server environment: EMAIL_USER, EMAIL_PASS, and OTP_SECRET are required in production');
+
+if (
+  parsed.data.NODE_ENV === 'production' &&
+  (!parsed.data.BREVO_API_KEY || !parsed.data.BREVO_SENDER_EMAIL || !parsed.data.OTP_SECRET)
+) {
+  throw new Error('Invalid server environment: BREVO_API_KEY, BREVO_SENDER_EMAIL, and OTP_SECRET are required in production');
 }
 
-const origins = parsed.data.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean);
+const origins = parsed.data.CORS_ORIGINS
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 for (const origin of origins) {
   try {
     const parsedOrigin = new URL(origin);
@@ -68,4 +85,7 @@ if (parsed.data.NODE_ENV === 'production' && parsed.data.JWT_SECRET.includes('re
   throw new Error('JWT_SECRET must be replaced before production startup');
 }
 
-export const env = Object.freeze({ ...parsed.data, CORS_ORIGINS: origins });
+export const env = Object.freeze({
+  ...parsed.data,
+  CORS_ORIGINS: origins
+});

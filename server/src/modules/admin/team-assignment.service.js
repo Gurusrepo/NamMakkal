@@ -1,5 +1,6 @@
 import { db } from '../../config/database.js';
 import { departments } from '../intelligence/intelligence.taxonomy.js';
+import { notifyAssignedTeam } from '../notifications/notification.service.js';
 
 export class TeamAssignmentError extends Error {
   constructor(message, status = 409) { super(message); this.status = status; }
@@ -57,6 +58,7 @@ const assignTx = db.transaction((issueId, teamId, routingDepartment, adminId) =>
   const event = db.prepare(`INSERT INTO civic_issue_team_assignment_events
     (civic_issue_id,event_type,previous_team_id,team_id,approved_department,admin_user_id)
     VALUES(?,'ASSIGNED',NULL,?,?,?)`).run(issueId, team.id, routingDepartment, adminId);
+  notifyAssignedTeam(issueId, Number(event.lastInsertRowid));
   return assignmentResult({ eventId: Number(event.lastInsertRowid), issueId, eventType: 'ASSIGNED', team, routingDepartment, adminId });
 });
 export const assignIssueToTeam = (issueId, teamId, department, adminId) => assignTx.immediate(issueId, teamId, department, adminId);
@@ -80,6 +82,7 @@ const reassignTx = db.transaction((issueId, teamId, routingDepartment, adminId) 
   const event = db.prepare(`INSERT INTO civic_issue_team_assignment_events
     (civic_issue_id,event_type,previous_team_id,team_id,approved_department,admin_user_id)
     VALUES(?,'REASSIGNED',?,?,?,?)`).run(issueId, previousTeam.id, team.id, routingDepartment, adminId);
+  notifyAssignedTeam(issueId, Number(event.lastInsertRowid));
   return assignmentResult({ eventId: Number(event.lastInsertRowid), issueId, eventType: 'REASSIGNED', previousTeam, team, routingDepartment, adminId });
 });
 export const reassignIssueTeam = (issueId, teamId, department, adminId) => reassignTx.immediate(issueId, teamId, department, adminId);

@@ -1,8 +1,8 @@
 const en = {
   auth: {
     resumeRegistrationHint: 'If you started registration earlier, sign in with the same email and password to resume verification.',
-    registrationResumePrompt: 'Already have an account or started registration?',
-    signInToResume: 'Sign in to resume email verification',
+    registrationResumePrompt: 'Already have an account ',
+    signInToResume: 'Sign in',
     forgotPassword: 'Forgot password?',
     forgotTitle: 'Reset your password',
     forgotIntro: 'Enter the email address linked to your account. If an eligible account exists, we will send a reset code.',

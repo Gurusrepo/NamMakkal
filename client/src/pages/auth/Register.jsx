@@ -164,29 +164,46 @@ export default function Register() {
 
   return (
     <main className="min-h-screen bg-[#f7f6ef] lg:grid lg:grid-cols-[0.92fr_1.08fr]">
-      <aside className="relative hidden min-h-screen overflow-hidden bg-[#173d2b] px-12 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-20">
-        <div className="absolute -right-28 top-1/4 h-96 w-96 rounded-full border border-white/10" />
-        <div className="absolute -right-12 top-[30%] h-64 w-64 rounded-full border border-[#d4ae58]/25" />
-        <Link to="/" aria-label="NAMMAKKAL home" className="relative z-10 inline-flex w-fit rounded-2xl bg-[#fbfaf5] p-3">
-          <img className="h-auto w-56" src={nammakkalLogo} alt="NAMMAKKAL" />
-        </Link>
-        <div className="relative z-10 max-w-lg pb-12">
-          <p className="mb-5 text-xs font-semibold uppercase tracking-[0.24em] text-[#e2c77f]">Your community starts here</p>
-          <h1 className="text-5xl font-semibold leading-[1.12] tracking-tight xl:text-6xl">Make a difference<br />where you <span className="text-[#e2c77f]">live.</span></h1>
-          <p className="mt-7 max-w-md text-base leading-7 text-white/75">Create your account to share local concerns and follow the progress toward a better neighbourhood.</p>
-        </div>
-        <p className="relative z-10 text-xs text-white/55">A community platform for Nammakkal</p>
-      </aside>
+            <aside className="relative hidden min-h-screen overflow-hidden bg-[#173d2d] px-12 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-20">
+              <div className="absolute -right-28 top-1/4 h-96 w-96 rounded-full border border-white/10" />
+              <div className="absolute -right-12 top-[30%] h-64 w-64 rounded-full border border-[#d4ae58]/25" />
+                <img
+  className="hidden h-auto w-56 sm:block"
+  src={nammakkalLogo}
+  alt="NAMMAKKAL"
+/>
+
+              <div className="relative z-10 max-w-lg pb-12">
+        <p className="mb-5 font-['Inter'] text-xs font-bold uppercase tracking-[0.24em] text-[#e2c77f]">
+          Together, We Build Better Tomorrow
+        </p>
+
+        <h1 className="font-['Manrope'] text-5xl font-extrabold leading-[1.12] tracking-tight xl:text-6xl">
+          Our town.<br />
+          Our voice.<br />
+          <span className="text-[#e2c77f]">Our future.</span>
+        </h1>
+
+        <p className="mt-7 max-w-md font-['Inter'] text-base leading-8 text-white/80">
+          Your voice matters. Share ideas, raise concerns, and work together to create a better, stronger Place for everyone.
+        </p>
+      </div>
+              <p className="relative z-10 text-xs text-white/55">
+        By continuing, you agree to our{" "}
+        <a
+          href="/terms-and-conditions"
+          className="text-[#e2c77f] transition-colors hover:text-white hover:underline"
+        >
+          Terms & Conditions
+        </a>
+      </p>
+            </aside>
 
       <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-10 lg:px-14 xl:px-24">
         <div className="w-full max-w-md">
-          <Link to="/" aria-label="NAMMAKKAL home" className="mb-7 inline-flex rounded-xl bg-white p-2 shadow-sm lg:hidden">
-            <img className="h-auto w-48" src={nammakkalLogo} alt="NAMMAKKAL" />
-          </Link>
+        <img className="mb-9 h-auto w-52 rounded-xl bg-white p-2 shadow-sm lg:hidden" src={nammakkalLogo} alt="NAMMAKKAL" />
           <div className="mb-7">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#9a7832]">Join your community</p>
-            <h2 className="text-3xl font-semibold tracking-tight text-[#20382a] sm:text-4xl">Create your account</h2>
-            <p className="mt-3 text-sm leading-6 text-[#68736a]">Sign up as a resident to get started with NAMMAKKAL.</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#9a7832]">Join ourCommunity</p>
           </div>
 
           {sessionError && <p role="status" className="mb-5 rounded-xl border border-[#e7d9b4] bg-[#fff9e9] px-4 py-3 text-sm text-[#725a23]">We could not verify an existing session. You can still create an account.</p>}
@@ -207,16 +224,14 @@ export default function Register() {
                 <span className="flex shrink-0 items-center border-r border-[#d9ded5] px-3 text-sm font-semibold text-[#426c4d]">+91</span>
                 <input id="register-phone" name="phoneNumber" type="tel" autoComplete="tel-national" inputMode="numeric" maxLength={12} required value={phoneNumber} onChange={(event) => setPhoneNumber(event.target.value.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').slice(0, 10))} className="min-w-0 flex-1 rounded-r-xl bg-transparent px-4 py-3 text-sm text-[#24362a] outline-none placeholder:text-[#9aa39b]" placeholder="9876543210" />
               </div>
-              <p className="mt-1 text-xs text-[#7a847b]">Enter only a 10-digit Indian mobile number.</p>
             </div>
             <div>
               <label htmlFor="register-dob" className="mb-2 block text-sm font-medium text-[#34483a]">Date of birth</label>
               <input id="register-dob" name="dateOfBirth" type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} required value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} className="w-full rounded-xl border border-[#d9ded5] bg-white px-4 py-3 text-sm text-[#24362a] outline-none transition focus:border-[#477454] focus:ring-4 focus:ring-[#477454]/10" />
-              <p className="mt-1 text-xs text-[#7a847b]">Your date of birth does not verify your identity or citizenship.</p>
             </div>
             <div>
               <label htmlFor="register-address" className="mb-2 block text-sm font-medium text-[#34483a]">Residential address</label>
-              <textarea id="register-address" name="address" autoComplete="street-address" maxLength={400} rows={3} required value={address} onChange={(event) => setAddress(event.target.value)} className="w-full rounded-xl border border-[#d9ded5] bg-white px-4 py-3 text-sm text-[#24362a] outline-none transition placeholder:text-[#9aa39b] focus:border-[#477454] focus:ring-4 focus:ring-[#477454]/10" placeholder="House number, street, locality, city" />
+              <textarea id="register-address" name="address" autoComplete="street-address" maxLength={400} rows={3} required value={address} onChange={(event) => setAddress(event.target.value)} className="w-full rounded-xl border border-[#d9ded5] bg-white px-4 py-3 text-sm text-[#24362a] outline-none transition placeholder:text-[#9aa39b] focus:border-[#477454] focus:ring-4 focus:ring-[#477454]/10" placeholder="Street, Landmark, City, District, Pincode" />
             </div>
             <div>
               <label htmlFor="register-password" className="mb-2 block text-sm font-medium text-[#34483a]">Password</label>
@@ -228,7 +243,7 @@ export default function Register() {
                   </svg>
                 </button>
               </div>
-              <p className="mt-2 text-xs text-[#7a847b]">Use 10 to 72 characters.</p>
+              <p className="mt-2 ml-2 text-xs text-[#7a847b]">max 72 characters.</p>
             </div>
             <div>
               <label htmlFor="register-confirm-password" className="mb-2 block text-sm font-medium text-[#34483a]">Confirm password</label>

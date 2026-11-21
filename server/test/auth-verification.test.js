@@ -15,8 +15,8 @@ process.env.CORS_ORIGINS = 'http://localhost:3000';
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'test-key';
 process.env.GEMINI_API_KEY = 'test-key';
-process.env.EMAIL_USER = 'verify@gmail.test';
-process.env.EMAIL_PASS = 'abcdefghijklmnop';
+process.env.BREVO_API_KEY = 'test-brevo-api-key';
+process.env.BREVO_SENDER_EMAIL = 'verify@gmail.test';
 process.env.OTP_SECRET = 'verification-otp-secret-distinct-from-jwt';
 
 const originalFetch = globalThis.fetch;
@@ -186,21 +186,75 @@ test('registration remains pending until email verification and sign-in requires
   assert.deepEqual(db.prepare(`SELECT display_name,email,password_hash,role,phone_number,
     date_of_birth,address,account_status,email_verified FROM users WHERE id=?`).get(user.id), activeAccount);
 
-  const sentBeforeLogin = sentMailCount;
-  const login = await request('/api/auth/login', {
-    method: 'POST', body: { email: base.email, password: base.password }
+  const sentBeforeInvalidCredentials = sentMailCount;
+  const incorrectEmail = await request('/api/auth/login', {
+    method: 'POST', body: { email: 'missing@example.test', password: base.password }
   });
+  assert.equal(incorrectEmail.status, 401);
+  const incorrectActivePassword = await request('/api/auth/login', {
+    method: 'POST', body: { email: base.email, password: 'IncorrectPassword123' }
+  });
+  assert.equal(incorrectActivePassword.status, 401);
+  assert.equal(sentMailCount, sentBeforeInvalidCredentials);
+
+  const sentBeforeLogin = sentMailCount;
+  let signalMailStarted;
+  let releaseMail;
+  const mailStarted = new Promise((resolve) => { signalMailStarted = resolve; });
+  const mailRelease = new Promise((resolve) => { releaseMail = resolve; });
+  emailSendGate = { onStarted: signalMailStarted, promise: mailRelease };
+  let login;
+  try {
+    const firstLoginRequest = request('/api/auth/login', {
+      method: 'POST', body: { email: base.email, password: base.password }
+    });
+    await mailStarted;
+    const inFlightLogin = await request('/api/auth/login', {
+      method: 'POST', body: { email: base.email, password: base.password }
+    });
+    assert.equal(inFlightLogin.status, 202);
+    assert.equal(authCookie(inFlightLogin), undefined);
+    assert.equal((await inFlightLogin.json()).deliveryState, 'PENDING');
+    releaseMail();
+    login = await firstLoginRequest;
+  } finally {
+    releaseMail();
+    emailSendGate = null;
+  }
   assert.equal(login.status, 202);
   assert.equal(authCookie(login), undefined);
-  assert.match(deliveredCodes.email, /^\d{6}$/);
+  assert.equal((await login.json()).requiresOtpVerification, true);
+  const firstLoginCode = deliveredCodes.email;
+  assert.match(firstLoginCode, /^\d{6}$/);
   const loginChallenge = await request('/api/auth/login', {
     method: 'POST', body: { email: base.email, password: base.password }
   });
   assert.equal(loginChallenge.status, 202);
   assert.equal((await loginChallenge.json()).deliveryState, 'SENT');
   assert.equal(sentMailCount - sentBeforeLogin, 1);
+  const incorrectLoginCode = firstLoginCode === '000000' ? '000001' : '000000';
+  const incorrectLoginOtp = await request('/api/auth/login/otp/verify', {
+    method: 'POST', body: { email: base.email, code: incorrectLoginCode }
+  });
+  assert.equal(incorrectLoginOtp.status, 400);
+  assert.equal((await incorrectLoginOtp.json()).code, 'OTP_INVALID_OR_EXPIRED');
+  db.prepare(`UPDATE user_verification_challenges SET expires_at=?,resend_after=?
+    WHERE user_id=? AND channel='EMAIL' AND purpose='LOGIN'`)
+    .run(new Date(Date.now() - 1000).toISOString(), new Date(Date.now() - 1000).toISOString(), user.id);
+  const expiredLoginOtp = await request('/api/auth/login/otp/verify', {
+    method: 'POST', body: { email: base.email, code: firstLoginCode }
+  });
+  assert.equal(expiredLoginOtp.status, 400);
+  assert.equal((await expiredLoginOtp.json()).code, 'OTP_INVALID_OR_EXPIRED');
+  const sentBeforeRenewedLogin = sentMailCount;
+  const renewedLogin = await request('/api/auth/login', {
+    method: 'POST', body: { email: base.email, password: base.password }
+  });
+  assert.equal(renewedLogin.status, 202);
+  assert.equal(sentMailCount, sentBeforeRenewedLogin + 1);
+  const renewedLoginCode = deliveredCodes.email;
   const signIn = await request('/api/auth/login/otp/verify', {
-    method: 'POST', body: { email: base.email, code: deliveredCodes.email }
+    method: 'POST', body: { email: base.email, code: renewedLoginCode }
   });
   assert.equal(signIn.status, 200);
   assert.ok(authCookie(signIn));

@@ -59,7 +59,6 @@ export default function ManageAnnouncements() {
       <div>
         <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-[#9a7832]">Community updates</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#20382a]">Publish an announcement</h1>
-        <p className="mt-2 text-sm leading-6 text-[#68736a]">Published announcements are immediately visible to citizens.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-[#e5e2d5] bg-white p-5 shadow-sm sm:p-7">

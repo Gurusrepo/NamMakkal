@@ -5,6 +5,7 @@ import {
   createOfficer,
   getOfficer,
   listOfficers,
+  listWards,
   listTeams,
   removeTeamMember,
   resendOfficerInvitation,
@@ -20,7 +21,7 @@ function statusLabel(status) {
   return status === 'PENDING_EMAIL_VERIFICATION' ? 'Pending email verification' : status;
 }
 
-function OfficerDetails({ officer, teams, onClose, onRefresh }) {
+function OfficerDetails({ officer, teams, teamsError, onClose, onRefresh, onRetryTeams }) {
   const [teamId, setTeamId] = useState('');
   const [actionError, setActionError] = useState('');
   const [actionMessage, setActionMessage] = useState('');
@@ -134,6 +135,7 @@ function OfficerDetails({ officer, teams, onClose, onRefresh }) {
               </select>
               <button type="submit" disabled={isSaving || officer.status !== 'ACTIVE' || !teamId} className="min-h-11 rounded-xl bg-[#1d4933] px-4 text-sm font-semibold text-white disabled:opacity-50">Add to team</button>
             </form>
+            {teamsError && <ErrorState onRetry={onRetryTeams}>{teamsError}</ErrorState>}
             {officer.status !== 'ACTIVE' && <p className="mt-2 text-xs text-[#68736a]">Only active officers can be added to teams.</p>}
             {officer.teams.length === 0 ? <p className="mt-3 text-sm text-[#68736a]">No team membership history.</p> : (
               <ul className="mt-3 divide-y divide-[#ebe9df]">
@@ -172,6 +174,13 @@ function OfficerDetails({ officer, teams, onClose, onRefresh }) {
 export default function Officers() {
   const [items, setItems] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [allTeams, setAllTeams] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [wardId, setWardId] = useState('');
+  const [isWardsLoading, setIsWardsLoading] = useState(true);
+  const [wardsError, setWardsError] = useState('');
+  const [wardsRetry, setWardsRetry] = useState(0);
+  const [isTeamsLoading, setIsTeamsLoading] = useState(false);
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [offset, setOffset] = useState(0);
@@ -181,6 +190,7 @@ export default function Officers() {
   const [retry, setRetry] = useState(0);
   const [teamsError, setTeamsError] = useState('');
   const [teamsRetry, setTeamsRetry] = useState(0);
+  const [allTeamsError, setAllTeamsError] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailError, setDetailError] = useState('');
@@ -189,16 +199,45 @@ export default function Officers() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createMessage, setCreateMessage] = useState('');
-  const [form, setForm] = useState({ displayName: '', email: '', employeeId: '', teamIds: [] });
+  const [form, setForm] = useState({ displayName: '', email: '', teamIds: [] });
 
   useEffect(() => {
     let active = true;
-    setTeamsError('');
+    setIsWardsLoading(true);
+    setWardsError('');
+    listWards()
+      .then((result) => { if (active) setWards(result.items ?? []); })
+      .catch((error) => { if (active) setWardsError(getApiErrorMessage(error, 'Wards could not be loaded.')); })
+      .finally(() => { if (active) setIsWardsLoading(false); });
+    return () => { active = false; };
+  }, [wardsRetry]);
+
+  useEffect(() => {
+    let active = true;
+    setAllTeamsError('');
     listTeams()
-      .then((result) => { if (active) setTeams(result.items ?? []); })
-      .catch((error) => { if (active) setTeamsError(getApiErrorMessage(error, 'Ward teams could not be loaded.')); });
+      .then((result) => { if (active) setAllTeams(result.items ?? []); })
+      .catch((error) => { if (active) setAllTeamsError(getApiErrorMessage(error, 'Ward teams could not be loaded.')); });
     return () => { active = false; };
   }, [teamsRetry]);
+
+  useEffect(() => {
+    let active = true;
+    if (!wardId) {
+      setTeams([]);
+      setTeamsError('');
+      setIsTeamsLoading(false);
+      return () => { active = false; };
+    }
+    setIsTeamsLoading(true);
+    setTeamsError('');
+    setTeams([]);
+    listTeams({ wardId: Number(wardId) })
+      .then((result) => { if (active) setTeams(result.items ?? []); })
+      .catch((error) => { if (active) setTeamsError(getApiErrorMessage(error, 'Ward teams could not be loaded.')); })
+      .finally(() => { if (active) setIsTeamsLoading(false); });
+    return () => { active = false; };
+  }, [wardId, teamsRetry]);
 
   useEffect(() => {
     let active = true;
@@ -244,13 +283,14 @@ export default function Officers() {
       const result = await createOfficer({
         displayName: form.displayName.trim(),
         email: form.email.trim(),
-        employeeId: form.employeeId.trim(),
+        wardId: Number(wardId),
         teamIds: form.teamIds
       });
-      setForm({ displayName: '', email: '', employeeId: '', teamIds: [] });
-      setCreateMessage(result.invitation.sent
-        ? 'Officer account created. A verification email was sent; the officer can use Forgot password after verification to set a password.'
-        : result.invitation.error);
+      setForm({ displayName: '', email: '', teamIds: [] });
+      setWardId('');
+      setCreateMessage(`Officer account created. Employee ID: ${result.officer.employeeId}. ${result.invitation.sent
+        ? 'A verification email was sent; the officer can use Forgot password after verification to set a password.'
+        : result.invitation.error}`);
       setSelectedId(result.officer.id);
       setRetry((value) => value + 1);
     } catch (error) {
@@ -270,8 +310,6 @@ export default function Officers() {
     <div className="space-y-6">
       <header>
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9a7832]">Staff administration</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#20382a]">Officer management</h1>
-        <p className="mt-2 text-sm leading-6 text-[#68736a]">Create OFFICER accounts, assign ward teams, and manage account access. Public registration cannot create officer accounts.</p>
       </header>
 
       <form onSubmit={submitCreate} className="space-y-4 rounded-2xl border border-[#e5e2d5] bg-white p-4 shadow-sm sm:p-5">
@@ -286,20 +324,36 @@ export default function Officers() {
           <label className="text-sm font-medium text-[#34483a]">Email
             <input required type="email" maxLength={254} value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="mt-1 min-h-11 w-full rounded-xl border border-[#d9ded5] px-3" />
           </label>
-          <label className="text-sm font-medium text-[#34483a]">Employee ID
-            <input required maxLength={64} pattern="[A-Za-z0-9][A-Za-z0-9._\/\-]*" value={form.employeeId} onChange={(event) => setForm((current) => ({ ...current, employeeId: event.target.value }))} className="mt-1 min-h-11 w-full rounded-xl border border-[#d9ded5] px-3" />
+          <label className="text-sm font-medium text-[#34483a]">Ward
+            <select required value={wardId} onChange={(event) => {
+              const nextWardId = event.target.value;
+              setWardId(nextWardId);
+              setTeams([]);
+              setTeamsError('');
+              setIsTeamsLoading(Boolean(nextWardId));
+              setForm((current) => ({ ...current, teamIds: [] }));
+            }} disabled={isWardsLoading || Boolean(wardsError) || wards.length === 0} className="mt-1 min-h-11 w-full rounded-xl border border-[#d9ded5] px-3">
+              <option value="">Select a ward</option>
+              {wards.map((ward) => <option key={ward.id} value={ward.id}>{ward.code} · {ward.name}</option>)}
+            </select>
           </label>
           <label className="text-sm font-medium text-[#34483a]">Ward teams
-            <select required multiple value={form.teamIds.map(String)} onChange={(event) => setForm((current) => ({ ...current, teamIds: Array.from(event.target.selectedOptions, (option) => Number(option.value)) }))} disabled={Boolean(teamsError)} className="mt-1 min-h-24 w-full rounded-xl border border-[#d9ded5] px-3 py-2">
-              {teams.map((team) => <option key={team.id} value={team.id}>{team.ward.name} · {team.name} · {team.department}</option>)}
+            <select required multiple value={form.teamIds.map(String)} onChange={(event) => setForm((current) => ({ ...current, teamIds: Array.from(event.target.selectedOptions, (option) => Number(option.value)) }))} disabled={!wardId || isTeamsLoading || Boolean(teamsError) || teams.length === 0} className="mt-1 min-h-24 w-full rounded-xl border border-[#d9ded5] px-3 py-2">
+              {teams.map((team) => <option key={team.id} value={team.id}>{team.name} · {team.department}</option>)}
             </select>
             <span className="mt-1 block text-xs text-[#68736a]">Select one or more active teams (Ctrl/Cmd-click for multiple).</span>
           </label>
         </div>
+        {isWardsLoading && <p role="status" className="text-sm text-[#68736a]">Loading wards...</p>}
+        {wardsError && <ErrorState onRetry={() => setWardsRetry((value) => value + 1)}>{wardsError}</ErrorState>}
+        {!isWardsLoading && !wardsError && wards.length === 0 && <p role="status" className="text-sm text-[#68736a]">No active wards are available. Create an active ward in Wards before creating an Officer.</p>}
+        {wardId && isTeamsLoading && <p role="status" className="text-sm text-[#68736a]">Loading teams...</p>}
         {teamsError && <ErrorState onRetry={() => setTeamsRetry((value) => value + 1)}>{teamsError}</ErrorState>}
+        {wardId && !isTeamsLoading && !teamsError && teams.length === 0 && <p role="status" className="text-sm text-[#68736a]">No active teams are available for this ward. Add an active team in Teams before creating this Officer.</p>}
+        {!wardId && wards.length > 0 && <p className="text-sm text-[#68736a]">Select a ward to load its active teams.</p>}
         {createError && <p role="alert" className="rounded-lg bg-[#fff5f2] px-3 py-2 text-sm text-[#8b3c2d]">{createError}</p>}
         {createMessage && <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{createMessage}</p>}
-        <button type="submit" disabled={isCreating || Boolean(teamsError) || teams.length === 0 || form.teamIds.length === 0} className="min-h-11 rounded-xl bg-[#1d4933] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{isCreating ? 'Creating account…' : 'Create officer'}</button>
+        <button type="submit" disabled={isCreating || isWardsLoading || Boolean(wardsError) || wards.length === 0 || !wardId || isTeamsLoading || Boolean(teamsError) || teams.length === 0 || form.teamIds.length === 0} className="min-h-11 rounded-xl bg-[#1d4933] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{isCreating ? 'Creating account…' : 'Create officer'}</button>
       </form>
 
       <section className="space-y-4">
@@ -359,7 +413,7 @@ export default function Officers() {
             </div>
           </div>
         </div>
-      ) : detail ? <OfficerDetails officer={detail} teams={teams} onClose={() => setSelectedId(null)} onRefresh={() => { setDetailRetry((value) => value + 1); setRetry((value) => value + 1); }} /> : null)}
+      ) : detail ? <OfficerDetails officer={detail} teams={allTeams} teamsError={allTeamsError} onClose={() => setSelectedId(null)} onRefresh={() => { setDetailRetry((value) => value + 1); setRetry((value) => value + 1); }} onRetryTeams={() => setTeamsRetry((value) => value + 1)} /> : null)}
     </div>
   );
 }

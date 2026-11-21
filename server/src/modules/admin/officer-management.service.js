@@ -106,14 +106,39 @@ export function getOfficer(officerId) {
   return { ...mapOfficer(row), teams: listOfficerTeams(officerId), accountHistory: events };
 }
 
-function ensureValidTeams(teamIds) {
+function ensureValidTeams(wardId, teamIds) {
+  const ward = db.prepare('SELECT is_active FROM wards WHERE id=?').get(wardId);
+  if (!ward) throw new OfficerManagementError('Ward was not found', 404);
+  if (!ward.is_active) throw new OfficerManagementError('The selected ward must be active', 409);
+
   const placeholders = teamIds.map(() => '?').join(',');
-  const teams = db.prepare(`SELECT t.id,t.is_active,w.is_active AS ward_active FROM ward_teams t
+  const teams = db.prepare(`SELECT t.id,t.ward_id,t.is_active,w.is_active AS ward_active FROM ward_teams t
     JOIN wards w ON w.id=t.ward_id WHERE t.id IN (${placeholders})`).all(...teamIds);
   if (teams.length !== teamIds.length) throw new OfficerManagementError('One or more ward teams were not found', 404);
   if (teams.some((team) => !team.is_active || !team.ward_active)) {
     throw new OfficerManagementError('All selected teams and wards must be active', 409);
   }
+  if (teams.some((team) => team.ward_id !== wardId)) {
+    throw new OfficerManagementError('All selected teams must belong to the selected ward', 409);
+  }
+}
+
+function insertOfficerWithGeneratedId(input, passwordHash) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const employeeId = `EMP-${randomBytes(6).toString('hex').toUpperCase()}`;
+    try {
+      const result = db.prepare(`INSERT INTO users
+        (display_name,email,password_hash,role,employee_id,email_verified,account_status)
+        VALUES(?,?,?,'OFFICER',?,0,'PENDING_EMAIL_VERIFICATION')`)
+        .run(input.displayName, input.email, passwordHash, employeeId);
+      return { officerId: Number(result.lastInsertRowid), employeeId };
+    } catch (error) {
+      const idAlreadyExists = error?.code === 'SQLITE_CONSTRAINT_UNIQUE'
+        && db.prepare('SELECT 1 FROM users WHERE employee_id=? COLLATE NOCASE').get(employeeId);
+      if (!idAlreadyExists) throw error;
+    }
+  }
+  throw new OfficerManagementError('A unique employee ID could not be generated. Please try again.', 503);
 }
 
 const createOfficerTransaction = db.transaction((input, adminId, passwordHash) => {
@@ -121,22 +146,15 @@ const createOfficerTransaction = db.transaction((input, adminId, passwordHash) =
   if (db.prepare('SELECT 1 FROM users WHERE email=? COLLATE NOCASE').get(input.email)) {
     throw new OfficerManagementError('An account already uses that email', 409);
   }
-  if (db.prepare('SELECT 1 FROM users WHERE employee_id=? COLLATE NOCASE').get(input.employeeId)) {
-    throw new OfficerManagementError('An officer already uses that employee ID', 409);
-  }
-  ensureValidTeams(input.teamIds);
-  const result = db.prepare(`INSERT INTO users
-    (display_name,email,password_hash,role,employee_id,email_verified,account_status)
-    VALUES(?,?,?,'OFFICER',?,0,'PENDING_EMAIL_VERIFICATION')`)
-    .run(input.displayName, input.email, passwordHash, input.employeeId);
-  const officerId = Number(result.lastInsertRowid);
+  ensureValidTeams(input.wardId, input.teamIds);
+  const { officerId } = insertOfficerWithGeneratedId(input, passwordHash);
   const addMembership = db.prepare(`INSERT INTO ward_team_memberships
     (team_id,officer_user_id,added_by_admin_id) VALUES(?,?,?)`);
   for (const teamId of input.teamIds) addMembership.run(teamId, officerId, adminId);
   db.prepare(`INSERT INTO officer_account_events
     (officer_user_id,admin_user_id,event_type,previous_status,next_status)
     VALUES(?,?,'CREATED',NULL,'PENDING_EMAIL_VERIFICATION')`).run(officerId, adminId);
-  return officerId;
+  return { officerId };
 });
 
 async function deliverRegistrationInvitation(officerId, sender) {
@@ -158,10 +176,10 @@ export async function createOfficer(input, adminId, sender = sendVerificationCod
   const passwordHash = await bcrypt.hash(initialPassword, 12);
   let officerId;
   try {
-    officerId = createOfficerTransaction.immediate(input, adminId, passwordHash);
+    ({ officerId } = createOfficerTransaction.immediate(input, adminId, passwordHash));
   } catch (error) {
     if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      throw new OfficerManagementError('An officer already uses that email or employee ID', 409);
+      throw new OfficerManagementError('An account already uses that email', 409);
     }
     throw error;
   }

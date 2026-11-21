@@ -46,8 +46,10 @@ app.use(errorHandler);
 let server;
 let baseUrl;
 let wardId;
+let otherWardId;
 let teamA;
 let teamB;
+let otherWardTeam;
 let officerId;
 let issueId;
 
@@ -74,7 +76,7 @@ function createOfficerBody(overrides = {}) {
   return {
     displayName: 'New Officer',
     email: 'new.officer@example.test',
-    employeeId: 'emp-103',
+    wardId,
     teamIds: [teamA, teamB],
     ...overrides
   };
@@ -86,10 +88,13 @@ before(async () => {
       (2,'Citizen','citizen@example.test','hash','CITIZEN',1),
       (3,'Existing Officer','existing.officer@example.test','hash','OFFICER',1)`).run();
   wardId = Number(db.prepare("INSERT INTO wards(code,name) VALUES('NORTH','North Ward')").run().lastInsertRowid);
+  otherWardId = Number(db.prepare("INSERT INTO wards(code,name) VALUES('SOUTH','South Ward')").run().lastInsertRowid);
   teamA = Number(db.prepare(`INSERT INTO ward_teams(ward_id,name,department)
     VALUES(?,'Roads Team','Roads & Infrastructure')`).run(wardId).lastInsertRowid);
   teamB = Number(db.prepare(`INSERT INTO ward_teams(ward_id,name,department)
     VALUES(?,'Water Team','Water Supply')`).run(wardId).lastInsertRowid);
+  otherWardTeam = Number(db.prepare(`INSERT INTO ward_teams(ward_id,name,department)
+    VALUES(?,'South Roads Team','Roads & Infrastructure')`).run(otherWardId).lastInsertRowid);
   issueId = Number(db.prepare('INSERT INTO civic_issues DEFAULT VALUES').run().lastInsertRowid);
   server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
@@ -112,7 +117,7 @@ test('Admin creates a pending OFFICER with a unique employee ID, team membership
   officerId = result.officer.id;
   assert.equal(result.officer.name, 'New Officer');
   assert.equal(result.officer.email, 'new.officer@example.test');
-  assert.equal(result.officer.employeeId, 'EMP-103');
+  assert.match(result.officer.employeeId, /^EMP-[0-9A-F]{12}$/);
   assert.equal(result.officer.status, 'PENDING_EMAIL_VERIFICATION');
   assert.equal(result.invitation.sent, true);
   assert.equal(result.officer.teams.length, 2);
@@ -120,11 +125,51 @@ test('Admin creates a pending OFFICER with a unique employee ID, team membership
   assert.deepEqual(invitationCalls[0], { userId: officerId, purpose: 'REGISTRATION' });
   assert.deepEqual(db.prepare('SELECT role,employee_id,account_status,email_verified FROM users WHERE id=?').get(officerId), {
     role: 'OFFICER',
-    employee_id: 'EMP-103',
+    employee_id: result.officer.employeeId,
     account_status: 'PENDING_EMAIL_VERIFICATION',
     email_verified: 0
   });
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM officer_account_events WHERE officer_user_id=?').get(officerId).count, 1);
+});
+
+test('Admin officer creation validates ward membership and rejects client-selected employee IDs', async () => {
+  const missingWard = await request('/api/admin/officers', {
+    method: 'POST',
+    body: createOfficerBody({ email: 'missing-ward@example.test', wardId: 99999 })
+  });
+  assert.equal(missingWard.status, 404);
+
+  const mismatchedTeam = await request('/api/admin/officers', {
+    method: 'POST',
+    body: createOfficerBody({ email: 'mismatched-team@example.test', wardId: otherWardId, teamIds: [teamA] })
+  });
+  assert.equal(mismatchedTeam.status, 409);
+
+  const clientSelectedId = await request('/api/admin/officers', {
+    method: 'POST',
+    body: createOfficerBody({ email: 'client-id@example.test', employeeId: 'EMP-OVERRIDE' })
+  });
+  assert.equal(clientSelectedId.status, 400);
+});
+
+test('generated employee IDs remain unique across concurrent Officer creation', async () => {
+  const [first, second] = await Promise.all([
+    request('/api/admin/officers', {
+      method: 'POST',
+      body: createOfficerBody({ email: 'concurrent-one@example.test' })
+    }),
+    request('/api/admin/officers', {
+      method: 'POST',
+      body: createOfficerBody({ email: 'concurrent-two@example.test' })
+    })
+  ]);
+  assert.equal(first.status, 201);
+  assert.equal(second.status, 201);
+  const firstId = (await first.json()).officer.employeeId;
+  const secondId = (await second.json()).officer.employeeId;
+  assert.match(firstId, /^EMP-[0-9A-F]{12}$/);
+  assert.match(secondId, /^EMP-[0-9A-F]{12}$/);
+  assert.notEqual(firstId, secondId);
 });
 
 test('Admin officer listing validates filters, paginates, searches employee IDs, and returns missing records explicitly', async () => {
@@ -134,7 +179,9 @@ test('Admin officer listing validates filters, paginates, searches employee IDs,
   assert.equal(result.items.length, 1);
   assert.equal(result.pagination.hasMore, true);
 
-  const search = await request('/api/admin/officers?search=emp-103&status=PENDING_EMAIL_VERIFICATION');
+  const createdResponse = await request(`/api/admin/officers/${officerId}`);
+  const employeeId = (await createdResponse.json()).officer.employeeId;
+  const search = await request(`/api/admin/officers?search=${encodeURIComponent(employeeId.toLowerCase())}&status=PENDING_EMAIL_VERIFICATION`);
   assert.equal(search.status, 200);
   assert.deepEqual((await search.json()).items.map((officer) => officer.id), [officerId]);
 
@@ -148,7 +195,7 @@ test('Admin officer listing validates filters, paginates, searches employee IDs,
 
   const duplicate = await request('/api/admin/officers', {
     method: 'POST',
-    body: createOfficerBody({ email: 'different@example.test', employeeId: 'EMP-103' })
+    body: createOfficerBody({ email: 'new.officer@example.test' })
   });
   assert.equal(duplicate.status, 409);
 
@@ -163,14 +210,16 @@ test('invitation delivery failures are visible and can be retried without duplic
     body: createOfficerBody({
       displayName: 'Pending Officer',
       email: 'pending.officer@example.test',
-      employeeId: 'EMP-104',
-      teamIds: [teamA]
+      wardId: otherWardId,
+      teamIds: [otherWardTeam]
     })
   });
   assert.equal(response.status, 201);
   const result = await response.json();
   assert.equal(result.invitation.sent, false);
   assert.match(result.invitation.error, /verification email could not be sent/i);
+  assert.match(result.officer.employeeId, /^EMP-[0-9A-F]{12}$/);
+  assert.notEqual(result.officer.employeeId, db.prepare('SELECT employee_id FROM users WHERE id=?').get(officerId).employee_id);
   const createdId = result.officer.id;
 
   failInvitation = false;

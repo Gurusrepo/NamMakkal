@@ -252,29 +252,9 @@ export default function Suggestions() {
       {/* Page Header */}
       <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9a7832]">
-            Suggestions
-          </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#20382a] sm:text-3xl">
-            Community Suggestions
-          </h1>
-          <p className="mt-1 text-sm text-[#68736a]">
+          <p className="mt-1 text-sm tracking-[0.16em] text-[#9a7832]">
             Review and manage suggestions submitted by citizens.
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d9ded5] bg-white px-3.5 py-1.5 text-xs font-semibold text-[#20382a] shadow-xs">
-            <span className="h-2 w-2 rounded-full bg-[#1d4933]" />
-            Showing {startIdx} of {totalCount}
-          </span>
-          <button
-            type="button"
-            onClick={() => setRefreshTrigger((c) => c + 1)}
-            aria-label="Refresh suggestions"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#d9ded5] bg-white text-[#20382a] transition hover:bg-[#f7f8f5] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#477454]"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
         </div>
       </header>
 
@@ -350,12 +330,7 @@ export default function Suggestions() {
                 <X className="h-4 w-4" />
                 Clear filters
               </button>
-            ) : (
-              <div className="flex items-center gap-2 text-xs text-[#758077]">
-                <Filter className="h-4 w-4" />
-                <span>All statuses</span>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       </section>
@@ -484,8 +459,7 @@ export default function Suggestions() {
                           onClick={() => setSelectedReference(item.referenceId)}
                           className="inline-flex items-center gap-1.5 rounded-xl bg-[#1d4933] px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-[#163b29] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#477454]"
                         >
-                          <Eye className="h-3.5 w-3.5" />
-                          View details
+                          <Eye className="h-3.5 w-3.5" /> view
                         </button>
                       </td>
                     </tr>
@@ -498,7 +472,7 @@ export default function Suggestions() {
           {/* Pagination Controls */}
           <div className="flex flex-col gap-3 border-t border-[#e5e2d5] bg-[#f7f8f5] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-[#758077]">
-              Showing {startIdx} of {totalCount}
+              Showing {startIdx}-{endIdx} of {totalCount}
             </p>
             <div className="flex items-center gap-2">
               <button

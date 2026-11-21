@@ -55,9 +55,8 @@ export default function Announcements() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-[#9a7832]">From your community</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[#20382a]">Public announcements</h1>
-        <p className="mt-2 text-sm text-[#68736a]">News and notices from your local civic team.</p>
+        <p className="mt-5 text-xl font-semibold uppercase tracking-[0.16em] text-[#9a7832]">From your community</p>
+        <p className="mt-2 text-sm text-[#68736a]">News and notices from your local civil team.</p>
       </div>
       {error && items.length === 0 ? (
         <ErrorState onRetry={retryPage}>{error}</ErrorState>

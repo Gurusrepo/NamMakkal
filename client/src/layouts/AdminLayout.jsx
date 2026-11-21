@@ -1,31 +1,28 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell, ClipboardList, CopyCheck, Flag, LayoutDashboard, Lightbulb, LogOut,
-  MapPinned, Megaphone, Menu, Scale, Settings, Users, UsersRound, X
+  ClipboardList, CopyCheck, Flag, LayoutDashboard, Lightbulb, LogOut,
+  MapPinned, Megaphone, Menu, Scale, Users, UsersRound, X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDismissableLayer } from '../context/DismissableLayerContext.jsx';
 import { getApiErrorMessage } from '../api/errors.js';
-import { useTranslation } from '../i18n/LocaleProvider.jsx';
 import nammakkalLogo from '../assets/nammakkal-logo.png';
 
 export const adminNavigationItems = [
-  { key: 'overview', path: '', icon: LayoutDashboard, available: true },
-  { key: 'complaints', path: 'complaints', icon: ClipboardList, available: true },
-  { key: 'reportedProblems', path: 'reported-problems', icon: Flag, available: true },
-  { key: 'suggestions', path: 'suggestions', icon: Lightbulb },
-  { key: 'announcements', path: 'announcements', icon: Megaphone, available: true },
-  { key: 'officers', path: 'officers', icon: Users, available: true },
-  { key: 'wards', path: 'wards', icon: MapPinned, available: true },
-  { key: 'teams', path: 'teams', icon: UsersRound, available: true },
-  { key: 'duplicateReviews', path: 'duplicate-reviews', icon: CopyCheck, available: true },
-  { key: 'resolutionDisputes', path: 'disputes', icon: Scale, available: true },
-  { key: 'notifications', path: 'notifications', icon: Bell },
-  { key: 'settings', path: 'settings', icon: Settings }
+  { key: 'overview', label: 'Overview', path: '', icon: LayoutDashboard, available: true },
+  { key: 'complaints', label: 'Complaints', path: 'complaints', icon: ClipboardList, available: true },
+  { key: 'reportedProblems', label: 'Reported problems', path: 'reported-problems', icon: Flag, available: true },
+  { key: 'suggestions', label: 'Suggestions', path: 'suggestions', icon: Lightbulb, available: true },
+  { key: 'announcements', label: 'Announcements', path: 'announcements', icon: Megaphone, available: true },
+  { key: 'officers', label: 'Officers', path: 'officers', icon: Users, available: true },
+  { key: 'wards', label: 'Wards', path: 'wards', icon: MapPinned, available: true },
+  { key: 'teams', label: 'Teams', path: 'teams', icon: UsersRound, available: true },
+  { key: 'duplicateReviews', label: 'Duplicate reviews', path: 'duplicate-reviews', icon: CopyCheck, available: true },
+  { key: 'resolutionDisputes', label: 'Resolution disputes', path: 'disputes', icon: Scale, available: true }
 ];
 
-function NavigationLinks({ onNavigate, isMobile, t }) {
+function NavigationLinks({ onNavigate, isMobile }) {
   const linkClass = ({ isActive }) => [
     'flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition',
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e2c77f]',
@@ -36,10 +33,10 @@ function NavigationLinks({ onNavigate, isMobile, t }) {
 
   return (
     <nav
-      aria-label={t(isMobile ? 'admin.layout.mobileNavigation' : 'admin.layout.navigation')}
+      aria-label={isMobile ? 'Admin mobile navigation' : 'Admin navigation'}
       className="flex flex-col gap-1"
     >
-      {adminNavigationItems.map(({ key, path, icon: Icon, available }) => (
+      {adminNavigationItems.map(({ key, label, path, icon: Icon, available }) => (
         <NavLink
           key={key}
           to={path ? `/admin/${path}` : '/admin'}
@@ -48,10 +45,10 @@ function NavigationLinks({ onNavigate, isMobile, t }) {
           className={linkClass}
         >
           <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-          <span className="min-w-0 flex-1 truncate">{t(`admin.navigation.${key}`)}</span>
+          <span className="min-w-0 flex-1 truncate">{label}</span>
           {!available && (
             <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-white/65">
-              {t('admin.layout.comingSoon')}
+              Coming soon
             </span>
           )}
         </NavLink>
@@ -60,7 +57,7 @@ function NavigationLinks({ onNavigate, isMobile, t }) {
   );
 }
 
-function SidebarContents({ user, logout, onNavigate, isMobile, t }) {
+function SidebarContents({ user, logout, onNavigate, isMobile }) {
   const [logoutError, setLogoutError] = useState('');
   const navigate = useNavigate();
 
@@ -70,7 +67,7 @@ function SidebarContents({ user, logout, onNavigate, isMobile, t }) {
       await logout();
       navigate('/login', { replace: true });
     } catch (error) {
-      setLogoutError(getApiErrorMessage(error, t('admin.layout.logoutError')));
+      setLogoutError(getApiErrorMessage(error, 'Could not confirm sign out. Your local session has been cleared.'));
     }
   }
 
@@ -82,19 +79,19 @@ function SidebarContents({ user, logout, onNavigate, isMobile, t }) {
         className="inline-flex w-fit rounded-lg px-1 py-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
       >
         <img
-          src={nammakkalLogo}
-          alt={t('admin.layout.logoAlt')}
-          className="h-9 w-auto max-w-44 object-contain"
-        />
+  src={nammakkalLogo}
+  alt="NamMakkal"
+  className="mx-auto h-14 w-auto max-w-52 object-contain"
+/>
       </Link>
 
       <div className="mt-7 rounded-xl border border-white/15 bg-white/5 px-4 py-3">
-        <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
-        <p className="mt-1 text-xs text-white/65">{t('admin.layout.administrator')}</p>
+        <p className="truncate text-sm font-semibold text-white">Guru Prasad</p>
+        <p className="mt-1 text-xs text-white/65">Admin</p>
       </div>
 
       <div className="mt-6 min-h-0 flex-1 overflow-y-auto">
-        <NavigationLinks onNavigate={onNavigate} isMobile={isMobile} t={t} />
+        <NavigationLinks onNavigate={onNavigate} isMobile={isMobile} />
       </div>
 
       <div className="mt-4 border-t border-white/15 pt-4">
@@ -109,7 +106,7 @@ function SidebarContents({ user, logout, onNavigate, isMobile, t }) {
           className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-white/75 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e2c77f]"
         >
           <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
-          {t('admin.layout.signOut')}
+          Sign out
         </button>
       </div>
     </div>
@@ -118,7 +115,6 @@ function SidebarContents({ user, logout, onNavigate, isMobile, t }) {
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
-  const { t } = useTranslation();
   const location = useLocation();
   const {
     isOpen: isMobileNavigationOpen,
@@ -140,7 +136,6 @@ export default function AdminLayout() {
           logout={logout}
           onNavigate={close}
           isMobile={false}
-          t={t}
         />
       </aside>
 
@@ -149,16 +144,16 @@ export default function AdminLayout() {
           <Link to="/admin" className="inline-flex min-w-0 items-center gap-3">
             <img
               src={nammakkalLogo}
-              alt={t('admin.layout.logoAlt')}
+              alt="NamMakkal"
               className="h-8 w-auto max-w-36 object-contain"
             />
-            <span className="truncate text-sm font-semibold">{t('admin.layout.title')}</span>
+            <span className="truncate text-sm font-semibold">Administration</span>
           </Link>
           <button
             ref={triggerRef}
             type="button"
             onClick={toggle}
-            aria-label={t(isMobileNavigationOpen ? 'admin.layout.closeMenu' : 'admin.layout.openMenu')}
+            aria-label={isMobileNavigationOpen ? 'Close admin menu' : 'Open admin menu'}
             aria-expanded={isMobileNavigationOpen}
             aria-controls="admin-mobile-navigation"
             className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/25 text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e2c77f]"
@@ -180,13 +175,13 @@ export default function AdminLayout() {
           id="admin-mobile-navigation"
           role="dialog"
           aria-modal="true"
-          aria-label={t('admin.layout.mobileNavigation')}
+          aria-label="Admin mobile navigation"
           className="fixed inset-0 z-50 lg:hidden"
         >
           <button
             type="button"
             tabIndex={-1}
-            aria-label={t('admin.layout.closeMenu')}
+            aria-label="Close admin menu"
             onClick={close}
             className="absolute inset-0 h-full w-full cursor-default bg-black/45"
           />
@@ -196,7 +191,6 @@ export default function AdminLayout() {
               logout={logout}
               onNavigate={close}
               isMobile
-              t={t}
             />
           </aside>
         </div>

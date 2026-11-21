@@ -159,9 +159,12 @@ export default function Login() {
       <aside className="relative hidden min-h-screen overflow-hidden bg-[#173d2d] px-12 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-20">
         <div className="absolute -right-28 top-1/4 h-96 w-96 rounded-full border border-white/10" />
         <div className="absolute -right-12 top-[30%] h-64 w-64 rounded-full border border-[#d4ae58]/25" />
-        <Link to="/" aria-label="NAMMAKKAL home" className="relative z-10 inline-flex w-fit rounded-2xl p-3">
-          <img className="h-auto w-56" src={nammakkalLogo} alt="NAMMAKKAL" />
-        </Link>
+        <img
+  className="hidden h-auto w-56 sm:block"
+  src={nammakkalLogo}
+  alt="NAMMAKKAL"
+/>
+
         <div className="relative z-10 max-w-lg pb-12">
   <p className="mb-5 font-['Inter'] text-xs font-bold uppercase tracking-[0.24em] text-[#e2c77f]">
     Together, We Build Better Tomorrow
@@ -190,13 +193,11 @@ export default function Login() {
 
       <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-10 lg:px-14 xl:px-24">
         <div className="w-full max-w-md">
-          <Link to="/" aria-label="NAMMAKKAL home" className="mb-9 inline-flex rounded-xl bg-white p-2 shadow-sm lg:hidden">
-            <img className="h-auto w-48" src={nammakkalLogo} alt="NAMMAKKAL" />
-          </Link>
+          <img className="mb-9 h-auto w-48 rounded-xl bg-white p-2 shadow-sm lg:hidden" src={nammakkalLogo} alt="NAMMAKKAL" />
           <div className="mb-8">
             <p className="mb-3 text-l font-semibold uppercase tracking-[0.2em] text-[#9a7832]">Welcome 🙏</p>
             <h2 className="text-3xl font-semibold tracking-tight text-[#20382a] sm:text-4xl"><span class = "text-[#725a23] font-['Inter']">SignIn</span> to your account</h2>
-            
+
           </div>
 
           {sessionError && <p role="status" className="mb-5 rounded-xl border border-[#e7d9b4] bg-[#fff9e9] px-4 py-3 text-sm text-[#725a23]">We could not verify an existing session. You can still try signing in.</p>}

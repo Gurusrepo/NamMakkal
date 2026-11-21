@@ -16,8 +16,8 @@ process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'test-key';
 process.env.GEMINI_API_KEY = 'test-key';
 process.env.GEMINI_MODEL = 'gemini-3.5-flash-lite';
-process.env.EMAIL_USER = 'verify@gmail.test';
-process.env.EMAIL_PASS = 'abcdefghijklmnop';
+process.env.BREVO_API_KEY = 'test-brevo-api-key';
+process.env.BREVO_SENDER_EMAIL = 'verify@gmail.test';
 process.env.OTP_SECRET = 'auth-session-otp-secret-distinct-from-jwt';
 
 let deliveredEmailCode;
