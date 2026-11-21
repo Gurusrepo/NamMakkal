@@ -277,12 +277,18 @@ export default function Login() {
           </form>
 
           {verificationRequired && <section aria-labelledby="login-verification-title" className="mt-5 space-y-4 rounded-2xl border border-[#e5e2d5] bg-white p-5 shadow-sm">
+                        
             <div>
-              <h3 id="login-verification-title" className="text-lg font-semibold text-[#20382a]">{verificationPurpose === 'REGISTRATION' ? 'Verify your email address' : 'Verify your sign-in'}</h3>
-              <p className="mt-1 text-sm leading-6 text-[#68736a]">{verificationPurpose === 'REGISTRATION' ? 'Verify your email before signing in.' : 'Enter the sign-in code sent to your registered email address.'}</p>
-              {otpDestination && <p className="mt-2 text-sm font-medium text-[#385743]">{otpDestination}</p>}
-              {verificationMessage && <p className="mt-1 text-xs text-[#68736a]">{verificationMessage}</p>}
+              <h3 id="login-verification-title" className="text-lg font-semibold text-[#20382a]">
+                Verify your email
+              </h3>
+              {otpDestination && (
+                <p className="mt-1 text-sm text-[#68736a]">
+                  OTP sent to email: {otpDestination}
+                </p>
+              )}
             </div>
+
             <form onSubmit={handleVerifyOtp} className="space-y-3" aria-busy={isSubmitting}>
               <label htmlFor="login-otp-code" className="block text-sm font-medium text-[#34483a]">Verification code</label>
               <input id="login-otp-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} required value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} className="w-full rounded-xl border border-[#d9ded5] bg-white px-4 py-3 text-sm text-[#24362a] outline-none focus:border-[#477454] focus:ring-4 focus:ring-[#477454]/10" />
