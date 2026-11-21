@@ -33,6 +33,7 @@ setEmailTransportForTesting({
     return { accepted: [message.to] };
   }
 });
+const { cookieBaseOptionsForEnvironment } = await import('../src/modules/auth/auth.controller.js');
 const { default: app } = await import('../src/app.js');
 
 let server;
@@ -66,6 +67,21 @@ after(async () => {
   fs.rmSync(tempDirectory, { recursive: true, force: true });
 });
 
+test('session cookie settings use cross-site attributes only in production', () => {
+  assert.deepEqual(cookieBaseOptionsForEnvironment('production'), {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+    path: '/'
+  });
+  assert.deepEqual(cookieBaseOptionsForEnvironment('test'), {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    path: '/'
+  });
+});
+
 test('JWT expiration and cookie max-age remain aligned and expired sessions are rejected', async () => {
   const challenge = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
@@ -84,6 +100,7 @@ test('JWT expiration and cookie max-age remain aligned and expired sessions are 
   assert.match(cookie, /max-age=300/i);
   assert.match(cookie, /httponly/i);
   assert.match(cookie, /samesite=lax/i);
+  assert.doesNotMatch(cookie, /;\s*secure(?:;|$)/i);
   const token = cookie.match(/civicpulse_token=([^;]+)/)?.[1];
   assert.ok(token);
   const payload = jwt.decode(token);

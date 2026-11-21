@@ -4,12 +4,17 @@ import jwt from 'jsonwebtoken';
 import * as objectStorage from '../../services/objectStorage.js';
 import * as verificationService from './verification.service.js';
 
-const cookieBaseOptions = {
-  httpOnly: true,
-  secure: env.NODE_ENV === 'production',
-  sameSite: 'lax',
-  path: '/'
-};
+export function cookieBaseOptionsForEnvironment(nodeEnv) {
+  const isProduction = nodeEnv === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/'
+  };
+}
+
+const cookieBaseOptions = cookieBaseOptionsForEnvironment(env.NODE_ENV);
 
 function cookieOptionsForToken(token) {
   const payload = jwt.decode(token);
