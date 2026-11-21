@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import * as authApi from '../api/auth.js';
 import { SESSION_EXPIRED_EVENT } from '../api/client.js';
+import { advanceSessionEpoch } from '../api/sessionEpoch.js';
 
 const AuthContext = createContext(null);
 
@@ -93,6 +94,7 @@ export function AuthProvider({ children }) {
     const result = await authApi.login(credentials);
     if (result.requiresOtpVerification || result.requiresEmailVerification) return result;
     authVersion.current += 1;
+    advanceSessionEpoch();
     setUser(result.user);
     setIsLoading(false);
     setSessionError(null);
@@ -103,6 +105,7 @@ export function AuthProvider({ children }) {
   async function completeLoginOtp(credentials) {
     const result = await authApi.completeLoginOtp(credentials);
     authVersion.current += 1;
+    advanceSessionEpoch();
     setUser(result.user);
     setIsLoading(false);
     setSessionError(null);
