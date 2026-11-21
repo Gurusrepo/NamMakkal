@@ -8,7 +8,7 @@ import {
   listWards,
   listTeams,
   removeTeamMember,
-  resendOfficerInvitation,
+  deleteOfficer,
   updateOfficerStatus
 } from '../../api/admin.js';
 import { getApiErrorMessage } from '../../api/errors.js';
@@ -45,15 +45,18 @@ function OfficerDetails({ officer, teams, teamsError, onClose, onRefresh, onRetr
     }
   }
 
-  async function sendInvitation() {
+  async function deleteAccount() {
+    if (!window.confirm(`Delete ${officer.name}? This archives the officer account and preserves historical records.`)) return;
     setIsSaving(true);
     setActionError('');
     setActionMessage('');
     try {
-      await resendOfficerInvitation(officer.id);
-      setActionMessage('Verification email sent.');
+      await deleteOfficer(officer.id);
+      setActionMessage('Officer account deleted and archived.');
+      onRefresh();
+      onClose();
     } catch (error) {
-      setActionError(getApiErrorMessage(error, 'Invitation could not be sent. Please retry.'));
+      setActionError(getApiErrorMessage(error, 'Officer account could not be deleted.'));
     } finally {
       setIsSaving(false);
     }
@@ -116,11 +119,10 @@ function OfficerDetails({ officer, teams, teamsError, onClose, onRefresh, onRetr
           <section className="rounded-xl border border-[#e5e2d5] bg-white p-4">
             <h3 className="font-semibold text-[#20382a]">Account actions</h3>
             <div className="mt-3 flex flex-wrap gap-2">
-              {officer.status === 'PENDING_EMAIL_VERIFICATION' && <button type="button" disabled={isSaving} onClick={sendInvitation} className="min-h-10 rounded-xl border border-[#d9ded5] px-4 text-sm font-semibold text-[#34483a] disabled:opacity-50">Resend verification email</button>}
               {officer.status === 'ACTIVE' && <button type="button" disabled={isSaving} onClick={() => changeStatus('DEACTIVATED')} className="min-h-10 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-800 disabled:opacity-50">Deactivate account</button>}
               {officer.status === 'DEACTIVATED' && <button type="button" disabled={isSaving} onClick={() => changeStatus('ACTIVE')} className="min-h-10 rounded-xl bg-[#1d4933] px-4 text-sm font-semibold text-white disabled:opacity-50">Reactivate account</button>}
+              <button type="button" disabled={isSaving} onClick={deleteAccount} className="min-h-10 rounded-xl border border-rose-300 px-4 text-sm font-semibold text-rose-800 disabled:opacity-50">Delete account</button>
             </div>
-            {officer.status === 'PENDING_EMAIL_VERIFICATION' && <p className="mt-3 text-xs leading-5 text-[#68736a]">After verifying the invitation email, the officer can use Forgot password to set a password.</p>}
           </section>
 
           <section className="rounded-xl border border-[#e5e2d5] bg-white p-4">
@@ -199,7 +201,7 @@ export default function Officers() {
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createMessage, setCreateMessage] = useState('');
-  const [form, setForm] = useState({ displayName: '', email: '', teamIds: [] });
+  const [form, setForm] = useState({ displayName: '', email: '', password: '', teamIds: [] });
 
   useEffect(() => {
     let active = true;
@@ -283,14 +285,13 @@ export default function Officers() {
       const result = await createOfficer({
         displayName: form.displayName.trim(),
         email: form.email.trim(),
+        password: form.password,
         wardId: Number(wardId),
         teamIds: form.teamIds
       });
-      setForm({ displayName: '', email: '', teamIds: [] });
+      setForm({ displayName: '', email: '', password: '', teamIds: [] });
       setWardId('');
-      setCreateMessage(`Officer account created. Employee ID: ${result.officer.employeeId}. ${result.invitation.sent
-        ? 'A verification email was sent; the officer can use Forgot password after verification to set a password.'
-        : result.invitation.error}`);
+      setCreateMessage(`Officer account created. Employee ID: ${result.officer.employeeId}.`);
       setSelectedId(result.officer.id);
       setRetry((value) => value + 1);
     } catch (error) {
@@ -315,7 +316,7 @@ export default function Officers() {
       <form onSubmit={submitCreate} className="space-y-4 rounded-2xl border border-[#e5e2d5] bg-white p-4 shadow-sm sm:p-5">
         <div>
           <h2 className="text-lg font-semibold text-[#20382a]">Create officer account</h2>
-          <p className="mt-1 text-sm text-[#68736a]">The officer receives an email verification invitation and sets a password through the existing reset flow.</p>
+          <p className="mt-1 text-sm text-[#68736a]">Create the officer account directly. The officer can use normal login and Forgot password with email OTP.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-medium text-[#34483a]">Officer name
@@ -323,6 +324,9 @@ export default function Officers() {
           </label>
           <label className="text-sm font-medium text-[#34483a]">Email
             <input required type="email" maxLength={254} value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="mt-1 min-h-11 w-full rounded-xl border border-[#d9ded5] px-3" />
+          </label>
+          <label className="text-sm font-medium text-[#34483a]">Password
+            <input required type="password" autoComplete="new-password" minLength={10} maxLength={72} value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} className="mt-1 min-h-11 w-full rounded-xl border border-[#d9ded5] px-3" />
           </label>
           <label className="text-sm font-medium text-[#34483a]">Ward
             <select required value={wardId} onChange={(event) => {

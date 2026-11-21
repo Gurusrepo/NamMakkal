@@ -28,6 +28,7 @@ import Complaints from '../pages/admin/Complaints.jsx';
 import DuplicateReviews from '../pages/admin/DuplicateReviews.jsx';
 import Disputes from '../pages/admin/Disputes.jsx';
 import Officers from '../pages/admin/Officers.jsx';
+import Citizens from '../pages/admin/Citizens.jsx';
 import Wards from '../pages/admin/Wards.jsx';
 import Teams from '../pages/admin/Teams.jsx';
 import OfficerLayout from '../layouts/OfficerLayout.jsx';
@@ -116,6 +117,7 @@ export const router = createBrowserRouter([
       { path: 'duplicate-reviews', element: <DuplicateReviews /> },
       { path: 'disputes', element: <Disputes /> },
       { path: 'officers', element: <Officers /> },
+      { path: 'citizens', element: <Citizens /> },
       { path: 'wards', element: <Wards /> },
       { path: 'teams', element: <Teams /> },
       { path: ':section', element: <AdminSectionPlaceholder /> }

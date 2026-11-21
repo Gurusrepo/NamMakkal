@@ -12,12 +12,21 @@ export function getOwnedAssessment(userId, complaintId) {
   if (!row) return null;
   const result = { status: row.status, createdAt: row.created_at, updatedAt: row.updated_at };
   if (row.status === 'SUCCEEDED') {
+    let riskFactors = [];
+    if (row.risk_factors) {
+      try {
+        const parsed = JSON.parse(row.risk_factors);
+        riskFactors = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        riskFactors = [];
+      }
+    }
     Object.assign(result, {
       category: row.category,
       department: row.department,
       severity: row.severity,
       severity_reason: row.severity_reason,
-      risk_factors: JSON.parse(row.risk_factors),
+      risk_factors: riskFactors,
       confidence: row.confidence,
       human_review_required: Boolean(row.human_review_required),
       human_review_reason: row.human_review_reason

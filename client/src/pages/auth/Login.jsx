@@ -310,7 +310,7 @@ export default function Login() {
                 setIsSubmitting(false);
               }
             }} className="min-h-10 text-sm font-semibold text-[#1d4933] underline disabled:cursor-not-allowed disabled:text-[#8b948d]">
-              {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : 'Resend email code'}
+              {resendSeconds > 0 ? `Resend code in ${resendSeconds} seconds` : 'Resend code'}
             </button>
           </section>}
 

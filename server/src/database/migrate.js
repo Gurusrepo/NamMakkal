@@ -31,6 +31,8 @@ import * as officerWorkProgress from './migrations/029_officer_work_progress.js'
 import * as officerResolutions from './migrations/030_officer_resolutions.js';
 import * as officerNotifications from './migrations/031_officer_notifications.js';
 import * as officerActionPlans from './migrations/032_officer_action_plans.js';
+import * as supportUpdateNotifications from './migrations/033_support_update_notifications.js';
+import * as accountArchival from './migrations/034_account_archival.js';
 
 export const migrations = [
   coreSchema,
@@ -64,7 +66,9 @@ export const migrations = [
   officerWorkProgress,
   officerResolutions,
   officerNotifications,
-  officerActionPlans
+  officerActionPlans,
+  supportUpdateNotifications,
+  accountArchival
 ];
 
 export function migrateDatabase(database = defaultDatabase) {

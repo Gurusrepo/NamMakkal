@@ -14,7 +14,7 @@ export function createOfficerManagementController(verificationSender) {
     },
     async create(req, res, next) {
       try {
-        res.status(201).json({ ...(await service.createOfficer(req.body, req.user.id, verificationSender)) });
+        res.status(201).json({ ...(await service.createOfficer(req.body, req.user.id)) });
       } catch (error) { next(error); }
     },
     async resendInvitation(req, res, next) {
@@ -25,6 +25,11 @@ export function createOfficerManagementController(verificationSender) {
     updateStatus(req, res, next) {
       try {
         res.json({ officer: service.updateOfficerStatus(req.params.id, req.body.status, req.user.id) });
+      } catch (error) { next(error); }
+    },
+    delete(req, res, next) {
+      try {
+        res.json({ ...service.deleteOfficer(req.params.id, req.user.id) });
       } catch (error) { next(error); }
     }
   };

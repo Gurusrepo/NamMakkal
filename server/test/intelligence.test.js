@@ -138,6 +138,16 @@ test('Gemini retries a rate limit once, while timeout fails safely', async () =>
   assert.equal(calls, 2);
 });
 
+test('malformed risk factors do not break assessment retrieval', () => {
+  const { complaintId } = addComplaint(1, 'SUCCEEDED');
+  db.prepare(`UPDATE complaint_ai_assessments
+    SET category='ROAD_DAMAGE', department='Roads & Infrastructure', severity='LOW',
+        risk_factors='not-json', confidence=0.8, human_review_required=0
+    WHERE complaint_id=?`).run(complaintId);
+  assert.deepEqual(getOwnedAssessment(1, complaintId).risk_factors, []);
+  assert.equal(getOwnedAssessment(2, complaintId), null);
+});
+
 test('assessment failure leaves complaint persisted and ownership limits retrieval', async () => {
   const { complaintId } = addComplaint(1);
   const processed = await processNextAssessment(async () => { throw new Error('provider unavailable'); });

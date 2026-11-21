@@ -10,7 +10,9 @@ export const DUPLICATE_CONFIG = Object.freeze({
   minimumScore: 0.55, minimumDistanceSignal: 0.25, minimumTimeSignal: 0.25
 });
 
-export class DuplicateError extends Error { constructor(message, status=409) { super(message); this.status=status; } }
+export class DuplicateError extends Error {
+  constructor(message, status=409) { super(message); this.status=status; this.expose=status>=400&&status<600; }
+}
 const haversine = (a,b) => {
   const rad = (n) => n * Math.PI / 180, dLat=rad(b.latitude-a.latitude), dLon=rad(b.longitude-a.longitude);
   const h=Math.sin(dLat/2)**2+Math.cos(rad(a.latitude))*Math.cos(rad(b.latitude))*Math.sin(dLon/2)**2;
@@ -96,16 +98,27 @@ export function listDuplicateCandidates({limit,offset,status='PENDING'}) {
   return {items,pagination:{limit,offset,hasMore}};
 }
 const adminExists=id=>db.prepare("SELECT 1 FROM users WHERE id=? AND role='ADMIN'").get(id);
+const activeDuplicateAssessments = new Set();
 export async function assessDuplicate(id,adminId) {
   if(!adminExists(adminId)) throw new DuplicateError('Admin authorization is required',403);
   const row=db.prepare("SELECT * FROM civic_issue_duplicate_suggestions WHERE id=? AND status='PENDING'").get(id);
   if(!row) throw new DuplicateError('Pending suggestion not found',404);
+  if(activeDuplicateAssessments.has(String(id))) throw new DuplicateError('AI assessment is already in progress',409);
+  activeDuplicateAssessments.add(String(id));
+  try {
   const texts=db.prepare(`SELECT c.title,c.description FROM complaints c WHERE c.civic_issue_id IN (?,?) ORDER BY c.created_at DESC LIMIT 6`).all(row.issue_a_id,row.issue_b_id)
     .map(x=>({title:redactPersonalDetails(x.title).slice(0,160),description:redactPersonalDetails(x.description).slice(0,500)}));
-  const result=await assessDuplicatePair(texts);
+  if(texts.length===0) throw new DuplicateError('No complaint text is available for assessment',409);
+  let result;
+  try { result=await assessDuplicatePair(texts); }
+  catch(error){
+    const status=error?.code==='PROVIDER_UNCONFIGURED'?503:502;
+    throw new DuplicateError(error?.message || 'AI assessment is temporarily unavailable',status);
+  }
   db.prepare(`UPDATE civic_issue_duplicate_suggestions SET ai_result=?,ai_confidence=?,ai_rationale=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=? AND status='PENDING'`)
     .run(result.result,result.confidence,result.rationale,id);
   return {id,status:'PENDING',aiAssessment:result};
+  } finally { activeDuplicateAssessments.delete(String(id)); }
 }
 function markStaleIfInvalid(row) {
   const a=activeRoot(row.issue_a_id),b=activeRoot(row.issue_b_id);

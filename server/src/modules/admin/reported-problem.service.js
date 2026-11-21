@@ -1,5 +1,6 @@
 import { db } from '../../config/database.js';
 import * as defaultStorage from '../../services/objectStorage.js';
+import { createSupportUpdateNotification } from '../notifications/notification.service.js';
 
 export class ReportedProblemError extends Error {
   constructor(message, status = 400) {
@@ -117,7 +118,7 @@ export async function updateReportedProblem(
   storageAdapter = defaultStorage
 ) {
   const existing = db.prepare(`
-    SELECT reference_id, status, closed_at, admin_notes
+    SELECT reference_id, user_id, status, closed_at, admin_notes
     FROM citizen_support_submissions
     WHERE reference_id = ? AND kind = 'BUG_REPORT'
   `).get(referenceId);
@@ -134,14 +135,27 @@ export async function updateReportedProblem(
     ? (adminNotes === null ? null : adminNotes.trim())
     : existing.admin_notes;
 
-  db.prepare(`
-    UPDATE citizen_support_submissions
-    SET status = ?,
-        admin_notes = ?,
-        updated_at = ?,
-        closed_at = ?
-    WHERE reference_id = ? AND kind = 'BUG_REPORT'
-  `).run(status, notesToSave, updatedAt, closedAt, referenceId);
+  const saveUpdate = db.transaction(() => {
+    db.prepare(`
+      UPDATE citizen_support_submissions
+      SET status = ?,
+          admin_notes = ?,
+          updated_at = ?,
+          closed_at = ?
+      WHERE reference_id = ? AND kind = 'BUG_REPORT'
+    `).run(status, notesToSave, updatedAt, closedAt, referenceId);
+
+    if (notesToSave) {
+      createSupportUpdateNotification({
+        userId: existing.user_id,
+        kind: 'BUG_REPORT',
+        referenceId,
+        status,
+        adminNotes: notesToSave
+      });
+    }
+  });
+  saveUpdate();
 
   return getReportedProblem(referenceId, storageAdapter);
 }

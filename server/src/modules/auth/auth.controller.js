@@ -51,7 +51,7 @@ export async function completeLoginOtp(req, res, next) {
 }
 
 export async function resendLoginOtp(req, res, next) {
-  try { res.json(await authService.login(req.body)); }
+  try { res.json(await authService.resendLoginOtp(req.body)); }
   catch (error) { next(error); }
 }
 

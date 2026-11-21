@@ -12,6 +12,7 @@ function dateTime(value) {
 }
 
 function category(type) {
+  if (type === 'SUPPORT_UPDATE') return 'Help & Support update';
   if (type.startsWith('ISSUE_') || type.startsWith('DISPUTE_')) return 'Complaint update';
   if (type.startsWith('ANNOUNCEMENT_')) return 'Announcement';
   if (type.startsWith('ACCOUNT_') || type.startsWith('VERIFICATION_')) return 'Account and verification';
@@ -74,7 +75,8 @@ export default function Notifications() {
     {error && items.length === 0 ? <ErrorState onRetry={() => setRetry((n) => n + 1)}>{error}</ErrorState> : loading && !items.length ? <LoadingState>Loading notifications…</LoadingState> : !items.length ? <EmptyState>You do not have any notifications yet.</EmptyState> : <div className="space-y-3">{items.map((item) => <article key={item.id} className={`rounded-2xl border p-4 shadow-sm sm:p-5 ${item.isRead ? 'border-[#e5e2d5] bg-white' : 'border-[#d4e2d3] bg-[#f7faf5]'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><span className="inline-flex rounded-full bg-[#edf2eb] px-2.5 py-1 text-xs font-semibold text-[#385743]">{category(item.notificationType)}</span><h2 className="mt-3 text-lg font-semibold text-[#20382a]">{item.title}</h2></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.isRead ? 'bg-[#f1f2ef] text-[#68736a]' : 'bg-[#dcebdd] text-[#1d4933]'}`}>{item.isRead ? 'Read' : 'Unread'}</span></div>
       <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#526258]">{item.message}</p><p className="mt-3 text-xs text-[#758077]"><time dateTime={item.createdAt}>{dateTime(item.createdAt)}</time></p>
-      <div className="mt-3 flex flex-wrap gap-4">{item.relatedComplaintId && <Link to={`/citizen/complaints/${item.relatedComplaintId}`} onClick={() => !item.isRead && read(item.id)} className="text-sm font-semibold text-[#1d4933] underline underline-offset-2">Open related complaint</Link>}{!item.isRead && <button type="button" disabled={workingId === item.id} onClick={() => read(item.id)} className="text-sm font-semibold text-[#1d4933] underline underline-offset-2 disabled:opacity-60">{workingId === item.id ? 'Saving…' : 'Mark as read'}</button>}</div>
+      {item.relatedSupportReference && <p className="mt-3 text-xs font-semibold text-[#758077]">Reference: {item.relatedSupportReference}</p>}
+      <div className="mt-3 flex flex-wrap gap-4">{item.relatedComplaintId && <Link to={`/citizen/complaints/${item.relatedComplaintId}`} onClick={() => !item.isRead && read(item.id)} className="text-sm font-semibold text-[#1d4933] underline underline-offset-2">Open related complaint</Link>}{item.relatedSupportReference && <Link to="/citizen/help" onClick={() => !item.isRead && read(item.id)} className="text-sm font-semibold text-[#1d4933] underline underline-offset-2">Open Help & Support</Link>}{!item.isRead && <button type="button" disabled={workingId === item.id} onClick={() => read(item.id)} className="text-sm font-semibold text-[#1d4933] underline underline-offset-2 disabled:opacity-60">{workingId === item.id ? 'Saving…' : 'Mark as read'}</button>}</div>
     </article>)}{hasMore && <div className="text-center"><button type="button" onClick={() => load(offset + PAGE_LIMIT, true)} className="min-h-11 rounded-xl border border-[#cfd8ce] bg-white px-5 text-sm font-semibold text-[#1d4933]">Load more</button></div>}</div>}
   </div>;
 }

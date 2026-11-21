@@ -251,7 +251,11 @@ export default function NotificationMenu() {
                     <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-[#526258]">{item.message}</p>
                     <p className="mt-2 text-[11px] text-[#758077]">{formatTimestamp(item.createdAt)}</p>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                      {item.relatedComplaintId ? <Link to={`/citizen/complaints/${item.relatedComplaintId}`} onClick={close} className="text-xs font-semibold text-[#1d4933] underline underline-offset-2">View complaint</Link> : <span />}
+                      {item.relatedComplaintId
+                        ? <Link to={`/citizen/complaints/${item.relatedComplaintId}`} onClick={close} className="text-xs font-semibold text-[#1d4933] underline underline-offset-2">View complaint</Link>
+                        : item.relatedSupportReference
+                          ? <Link to="/citizen/help" onClick={close} className="text-xs font-semibold text-[#1d4933] underline underline-offset-2">View update</Link>
+                          : <span />}
                       {!item.isRead && <button type="button" onClick={() => handleMarkRead(item.id)} disabled={pendingId === item.id} className="text-xs font-semibold text-[#1d4933] underline underline-offset-2 disabled:opacity-60">{pendingId === item.id ? 'Saving...' : 'Mark as read'}</button>}
                     </div>
                   </article>

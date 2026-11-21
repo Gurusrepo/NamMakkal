@@ -448,6 +448,59 @@ test('mobile verification endpoints are unavailable and email delivery failure k
   assert.equal((await timeoutRecovery.json()).deliveryState, 'SENT');
 });
 
+test('admin password login requires email OTP and creates no session before verification', async () => {
+  const password = 'StrongAdminPassword123';
+  const passwordHash = await bcrypt.hash(password, 12);
+  db.prepare(`INSERT INTO users
+    (display_name,email,password_hash,role,email_verified,account_status)
+    VALUES (?,?,?,?,1,'ACTIVE')`)
+    .run('Test Administrator', 'administrator@example.test', passwordHash, 'ADMIN');
+
+  const sentBefore = sentMailCount;
+  const adminLogin = await request('/api/auth/login', {
+    method: 'POST',
+    body: { email: 'administrator@example.test', password }
+  });
+  assert.equal(adminLogin.status, 202);
+  assert.equal(authCookie(adminLogin), undefined);
+  const adminData = await adminLogin.json();
+  assert.equal(adminData.requiresOtpVerification, true);
+  assert.equal(adminData.verificationChannel, 'EMAIL');
+  assert.equal(sentMailCount, sentBefore + 1);
+  const verify = await request('/api/auth/login/otp/verify', {
+    method: 'POST',
+    body: { email: 'administrator@example.test', code: deliveredCodes.email }
+  });
+  assert.equal(verify.status, 200);
+  assert.ok(authCookie(verify));
+  assert.equal((await request('/api/auth/me')).status, 401);
+});
+
+test('officer password login requires email OTP and creates no session before verification', async () => {
+  const password = 'StrongOfficerPassword123';
+  const passwordHash = await bcrypt.hash(password, 12);
+  db.prepare(`INSERT INTO users
+    (display_name,email,password_hash,role,email_verified,account_status)
+    VALUES (?,?,?,?,1,'ACTIVE')`)
+    .run('Test Officer', 'test-officer@example.test', passwordHash, 'OFFICER');
+
+  const officerLogin = await request('/api/auth/login', {
+    method: 'POST',
+    body: { email: 'test-officer@example.test', password }
+  });
+  assert.equal(officerLogin.status, 202);
+  assert.equal(authCookie(officerLogin), undefined);
+  assert.equal((await officerLogin.json()).requiresOtpVerification, true);
+  assert.equal((await request('/api/auth/me')).status, 401);
+
+  const verify = await request('/api/auth/login/otp/verify', {
+    method: 'POST',
+    body: { email: 'test-officer@example.test', code: deliveredCodes.email }
+  });
+  assert.equal(verify.status, 200);
+  assert.ok(authCookie(verify));
+});
+
 test('an existing unverified citizen must verify email before sign-in or protected access', async () => {
   const email = 'legacy-unverified@example.test';
   const password = 'LegacyCitizenPassword123';

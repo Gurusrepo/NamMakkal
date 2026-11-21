@@ -101,9 +101,22 @@ export const officerListQuerySchema = z.object({
   teamId: z.coerce.number().int().positive().optional(),
   search: z.string().trim().min(1).max(100).optional()
 }).strict();
+export const citizenIdSchema = z.object({ id: z.coerce.number().int().positive() }).strict();
+export const citizenListQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  offset: z.coerce.number().int().min(0).max(1000000).default(0),
+  status: z.enum(['ACTIVE', 'DEACTIVATED']).optional(),
+  search: z.string().trim().min(1).max(100).optional()
+}).strict();
+export const citizenStatusSchema = z.object({
+  status: z.enum(['ACTIVE', 'DEACTIVATED'])
+}).strict();
 export const createOfficerSchema = z.object({
   displayName: z.string().trim().min(1).max(100),
   email: z.string().trim().email().max(254).transform((value) => value.toLowerCase()),
+  password: z.string().min(10).max(72).refine((value) => Buffer.byteLength(value, 'utf8') <= 72, {
+    message: 'Password must be no more than 72 bytes'
+  }),
   wardId: z.number().int().positive(),
   teamIds: z.array(z.number().int().positive()).min(1).max(20)
     .refine((ids) => new Set(ids).size === ids.length, 'Team IDs must be unique')

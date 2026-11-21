@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getAiAssessment, getComplaint, getComplaintTimeline, getResolution, submitResolutionVerification } from '../../api/complaints.js';
 import { getApiErrorMessage } from '../../api/errors.js';
@@ -136,6 +136,7 @@ export default function ComplaintDetails() {
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState('');
   const [assessmentRetry, setAssessmentRetry] = useState(0);
+  const assessmentRequestSequence = useRef(0);
   const [resolution, setResolution] = useState(null);
   const [resolutionLoading, setResolutionLoading] = useState(false);
   const [resolutionError, setResolutionError] = useState('');
@@ -174,14 +175,23 @@ export default function ComplaintDetails() {
   useEffect(() => {
     if (!complaint) return undefined;
     let active = true;
+    const sequence = ++assessmentRequestSequence.current;
     setAssessmentLoading(true);
     setAssessmentError('');
     requestOnce(`citizen:${user?.id}:assessment:${id}:${assessmentRetry}`, () => getAiAssessment(id))
-      .then((result) => { if (active) setAssessment(result.assessment); })
-      .catch((requestError) => { if (active) setAssessmentError(getApiErrorMessage(requestError, 'Assessment information could not be loaded.')); })
-      .finally(() => { if (active) setAssessmentLoading(false); });
+      .then((result) => { if (active && sequence === assessmentRequestSequence.current) setAssessment(result.assessment); })
+      .catch((requestError) => { if (active && sequence === assessmentRequestSequence.current) setAssessmentError(getApiErrorMessage(requestError, 'Assessment information could not be loaded.')); })
+      .finally(() => { if (active && sequence === assessmentRequestSequence.current) setAssessmentLoading(false); });
     return () => { active = false; };
   }, [complaint, id, assessmentRetry, user?.id]);
+
+  useEffect(() => {
+    if (!assessment || !['PENDING', 'PROCESSING'].includes(assessment.status)) return undefined;
+    const timer = window.setTimeout(() => {
+      setAssessmentRetry((value) => value + 1);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [assessment]);
 
   useEffect(() => {
     if (!complaint || complaint.issueStatus !== 'RESOLVED') {

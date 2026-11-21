@@ -28,6 +28,16 @@ before(async()=>{user(1,'ADMIN');user(2,'CITIZEN');user(3,'OFFICER');user(4,'OFF
 });
 after(async()=>{if(server)await new Promise(r=>server.close(r));closeDatabase();fs.rmSync(dir,{recursive:true,force:true});});
 
+test('duplicate AI provider returns validated results and maps failures safely', async()=>{
+ const { assessDuplicatePair }=await import('../src/services/geminiProvider.js');
+ const successClient={models:{async generateContent(){return {text:JSON.stringify({result:'LIKELY_DUPLICATE',confidence:0.91,rationale:'The reports describe the same road defect.'})};}}};
+ const success=await assessDuplicatePair([{title:'Pothole',description:'A road pothole'}],successClient);
+ assert.equal(success.result,'LIKELY_DUPLICATE');
+ const failureClient={models:{async generateContent(){throw Object.assign(new Error('secret provider text'),{status:429});}}};
+ await assert.rejects(()=>assessDuplicatePair([{title:'Pothole',description:'A road pothole'}],failureClient),
+   (error)=>error.code==='PROVIDER_RATE_LIMITED');
+});
+
 test('deterministic matching uses distance, time and aggregate categories; category alone is insufficient',()=>{
  const made=duplicate.generateCandidatesForComplaint(ids.cb); assert.equal(made,1);
  assert.equal(duplicate.listDuplicateCandidates({limit:20,offset:0,status:'PENDING'}).items.length,1);

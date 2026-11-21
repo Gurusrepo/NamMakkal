@@ -1,4 +1,5 @@
 import { db } from '../../config/database.js';
+import { createSupportUpdateNotification } from '../notifications/notification.service.js';
 
 export class SuggestionError extends Error {
   constructor(message, status = 400) {
@@ -107,7 +108,7 @@ export function getSuggestion(referenceId) {
 
 export function updateSuggestion(referenceId, { status, rejectionReason, adminNotes }) {
   const existing = db.prepare(`
-    SELECT reference_id, status, rejection_reason, closed_at, admin_notes
+    SELECT reference_id, user_id, status, rejection_reason, closed_at, admin_notes
     FROM citizen_support_submissions
     WHERE reference_id = ? AND kind = 'SUGGESTION'
   `).get(referenceId);
@@ -153,15 +154,29 @@ export function updateSuggestion(referenceId, { status, rejectionReason, adminNo
     ? (adminNotes === null ? null : adminNotes.trim())
     : existing.admin_notes;
 
-  db.prepare(`
-    UPDATE citizen_support_submissions
-    SET status = ?,
-        rejection_reason = ?,
-        admin_notes = ?,
-        updated_at = ?,
-        closed_at = ?
-    WHERE reference_id = ? AND kind = 'SUGGESTION'
-  `).run(status, finalRejectionReason, notesToSave, updatedAt, closedAt, referenceId);
+  const saveUpdate = db.transaction(() => {
+    db.prepare(`
+      UPDATE citizen_support_submissions
+      SET status = ?,
+          rejection_reason = ?,
+          admin_notes = ?,
+          updated_at = ?,
+          closed_at = ?
+      WHERE reference_id = ? AND kind = 'SUGGESTION'
+    `).run(status, finalRejectionReason, notesToSave, updatedAt, closedAt, referenceId);
+
+    if (notesToSave) {
+      createSupportUpdateNotification({
+        userId: existing.user_id,
+        kind: 'SUGGESTION',
+        referenceId,
+        status,
+        adminNotes: notesToSave,
+        rejectionReason: finalRejectionReason
+      });
+    }
+  });
+  saveUpdate();
 
   return getSuggestion(referenceId);
 }

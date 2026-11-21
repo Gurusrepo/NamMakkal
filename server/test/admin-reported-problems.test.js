@@ -338,6 +338,42 @@ test('admin can update status and closed_at is set for terminal statuses and cle
   assert.ok(inDb.closed_at);
 });
 
+test('saved internal notes notify only the original submitter and retries are deduplicated', async () => {
+  addSubmission({
+    referenceId: 'NM-NOTE-BUG01',
+    userId: 2,
+    kind: 'BUG_REPORT',
+    title: 'Notification bug report',
+    category: 'TECHNICAL_ERROR',
+    description: 'Testing internal note notifications for the original submitter.',
+    status: 'NEW'
+  });
+
+  const payload = { status: 'IN_PROGRESS', adminNotes: 'The team reproduced this issue.' };
+  assert.equal((await request('/api/admin/reported-problems/NM-NOTE-BUG01/status', {
+    userId: 1, method: 'PATCH', body: payload
+  })).status, 200);
+  assert.equal((await request('/api/admin/reported-problems/NM-NOTE-BUG01/status', {
+    userId: 1, method: 'PATCH', body: payload
+  })).status, 200);
+
+  const notifications = db.prepare(`SELECT user_id,title,message,notification_type,related_support_reference
+    FROM notifications WHERE related_support_reference=?`).all('NM-NOTE-BUG01');
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].user_id, 2);
+  assert.equal(notifications[0].notification_type, 'SUPPORT_UPDATE');
+  assert.match(notifications[0].message, /The team reproduced this issue/);
+  assert.equal(notifications[0].related_support_reference, 'NM-NOTE-BUG01');
+
+  const beforeStatusOnly = db.prepare(`SELECT COUNT(*) AS count FROM notifications
+    WHERE related_support_reference='NM-NOTE-BUG01'`).get().count;
+  assert.equal((await request('/api/admin/reported-problems/NM-NOTE-BUG01/status', {
+    userId: 1, method: 'PATCH', body: { status: 'RESOLVED', adminNotes: null }
+  })).status, 200);
+  assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM notifications
+    WHERE related_support_reference='NM-NOTE-BUG01'`).get().count, beforeStatusOnly);
+});
+
 test('invalid reference IDs, missing problems, or invalid statuses are rejected', async () => {
   // Non-existent problem
   const notFoundRes = await request('/api/admin/reported-problems/NM-NONEXISTENT', { userId: 1 });

@@ -45,6 +45,12 @@ export const getOfficer = (id) => get(`/admin/officers/${id}`);
 export const createOfficer = (payload) => post('/admin/officers', payload);
 export const resendOfficerInvitation = (id) => post(`/admin/officers/${id}/invitation`);
 export const updateOfficerStatus = (id, payload) => patch(`/admin/officers/${id}/status`, payload);
+export const deleteOfficer = (id) => remove(`/admin/officers/${id}`);
+
+export const listCitizens = (params = {}) => get('/admin/citizens', params);
+export const getCitizen = (id) => get(`/admin/citizens/${id}`);
+export const updateCitizenStatus = (id, payload) => patch(`/admin/citizens/${id}/status`, payload);
+export const deleteCitizen = (id) => remove(`/admin/citizens/${id}`);
 
 export const listReportedProblems = (params = {}) => get('/admin/reported-problems', params);
 export const getReportedProblem = (referenceId) => get(`/admin/reported-problems/${referenceId}`);

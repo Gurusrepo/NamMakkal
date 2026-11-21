@@ -200,6 +200,19 @@ export async function completeLoginOtp({ email, code }) {
   return { user: publicUser(verifiedUser), token: makeSessionToken(verifiedUser) };
 }
 
+export async function resendLoginOtp({ email, password }) {
+  const normalizedEmail = String(email ?? '').trim().toLowerCase();
+  const user = findByEmail.get(normalizedEmail);
+  const matches = user ? await bcrypt.compare(password, user.password_hash) : false;
+  if (!matches || user.account_status === 'DEACTIVATED') {
+    throw new AuthError('Incorrect password or login details', 401);
+  }
+  if (!user.email_verified || user.account_status !== 'ACTIVE') {
+    throw new AuthError('A verified email and active account are required', 403);
+  }
+  return requestLoginVerification(user);
+}
+
 export async function completeRegistrationEmail({ email, code }) {
   const user = findByEmail.get(email);
   if (!user || user.account_status === 'DEACTIVATED') {

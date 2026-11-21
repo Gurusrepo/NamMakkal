@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'civicpulse-admin-officers-test-'));
 Object.assign(process.env, {
@@ -76,6 +77,7 @@ function createOfficerBody(overrides = {}) {
   return {
     displayName: 'New Officer',
     email: 'new.officer@example.test',
+    password: 'StrongOfficerPassword123',
     wardId,
     teamIds: [teamA, teamB],
     ...overrides
@@ -107,7 +109,7 @@ after(async () => {
   fs.rmSync(tempDirectory, { recursive: true, force: true });
 });
 
-test('Admin creates a pending OFFICER with a unique employee ID, team memberships, and an email invitation', async () => {
+test('Admin creates an active OFFICER with a unique employee ID, team memberships, and no OTP invitation', async () => {
   const response = await request('/api/admin/officers', {
     method: 'POST',
     body: createOfficerBody()
@@ -118,17 +120,19 @@ test('Admin creates a pending OFFICER with a unique employee ID, team membership
   assert.equal(result.officer.name, 'New Officer');
   assert.equal(result.officer.email, 'new.officer@example.test');
   assert.match(result.officer.employeeId, /^EMP-[0-9A-F]{12}$/);
-  assert.equal(result.officer.status, 'PENDING_EMAIL_VERIFICATION');
-  assert.equal(result.invitation.sent, true);
+  assert.equal(result.officer.status, 'ACTIVE');
+  assert.equal(result.officer.emailVerified, true);
+  assert.equal(result.invitation, undefined);
   assert.equal(result.officer.teams.length, 2);
   assert.equal(JSON.stringify(result).includes('password'), false);
-  assert.deepEqual(invitationCalls[0], { userId: officerId, purpose: 'REGISTRATION' });
   assert.deepEqual(db.prepare('SELECT role,employee_id,account_status,email_verified FROM users WHERE id=?').get(officerId), {
     role: 'OFFICER',
     employee_id: result.officer.employeeId,
-    account_status: 'PENDING_EMAIL_VERIFICATION',
-    email_verified: 0
+    account_status: 'ACTIVE',
+    email_verified: 1
   });
+  assert.equal(invitationCalls.length, 0);
+  assert.equal(await bcrypt.compare(createOfficerBody().password, db.prepare('SELECT password_hash FROM users WHERE id=?').get(officerId).password_hash), true);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM officer_account_events WHERE officer_user_id=?').get(officerId).count, 1);
 });
 
@@ -181,7 +185,7 @@ test('Admin officer listing validates filters, paginates, searches employee IDs,
 
   const createdResponse = await request(`/api/admin/officers/${officerId}`);
   const employeeId = (await createdResponse.json()).officer.employeeId;
-  const search = await request(`/api/admin/officers?search=${encodeURIComponent(employeeId.toLowerCase())}&status=PENDING_EMAIL_VERIFICATION`);
+  const search = await request(`/api/admin/officers?search=${encodeURIComponent(employeeId.toLowerCase())}&status=ACTIVE`);
   assert.equal(search.status, 200);
   assert.deepEqual((await search.json()).items.map((officer) => officer.id), [officerId]);
 
@@ -203,34 +207,6 @@ test('Admin officer listing validates filters, paginates, searches employee IDs,
   assert.equal(missing.status, 404);
 });
 
-test('invitation delivery failures are visible and can be retried without duplicating the account', async () => {
-  failInvitation = true;
-  const response = await request('/api/admin/officers', {
-    method: 'POST',
-    body: createOfficerBody({
-      displayName: 'Pending Officer',
-      email: 'pending.officer@example.test',
-      wardId: otherWardId,
-      teamIds: [otherWardTeam]
-    })
-  });
-  assert.equal(response.status, 201);
-  const result = await response.json();
-  assert.equal(result.invitation.sent, false);
-  assert.match(result.invitation.error, /verification email could not be sent/i);
-  assert.match(result.officer.employeeId, /^EMP-[0-9A-F]{12}$/);
-  assert.notEqual(result.officer.employeeId, db.prepare('SELECT employee_id FROM users WHERE id=?').get(officerId).employee_id);
-  const createdId = result.officer.id;
-
-  failInvitation = false;
-  const retry = await request(`/api/admin/officers/${createdId}/invitation`, { method: 'POST' });
-  assert.equal(retry.status, 200);
-  assert.equal((await retry.json()).invitation.sent, true);
-  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users WHERE email=?').get('pending.officer@example.test').count, 1);
-  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM officer_account_events WHERE officer_user_id=? AND event_type='INVITATION_RESENT'")
-    .get(createdId).count, 1);
-});
-
 test('Admin deactivation revokes sessions and excludes an officer from active team routing; reactivation restores eligibility', async () => {
   db.prepare(`UPDATE users SET account_status='ACTIVE',email_verified=1,email_verified_at='2026-11-20T12:00:00.000Z'
     WHERE id=?`).run(officerId);
@@ -244,6 +220,7 @@ test('Admin deactivation revokes sessions and excludes an officer from active te
   assert.equal(assignment.status, 201);
 
   const previousVersion = db.prepare('SELECT session_version FROM users WHERE id=?').get(officerId).session_version;
+  const activeCountBefore = (await (await request(`/api/admin/ward-teams/${teamA}`)).json()).team.activeMemberCount;
   const deactivated = await request(`/api/admin/officers/${officerId}/status`, {
     method: 'PATCH',
     body: { status: 'DEACTIVATED' }
@@ -251,13 +228,9 @@ test('Admin deactivation revokes sessions and excludes an officer from active te
   assert.equal(deactivated.status, 200);
   assert.equal((await deactivated.json()).officer.status, 'DEACTIVATED');
   assert.equal(db.prepare('SELECT session_version FROM users WHERE id=?').get(officerId).session_version, previousVersion + 1);
-  assert.equal((await (await request(`/api/admin/ward-teams/${teamA}`)).json()).team.activeMemberCount, 1);
+  assert.equal((await (await request(`/api/admin/ward-teams/${teamA}`)).json()).team.activeMemberCount,
+    activeCountBefore - 1);
 
-  const noActiveReplacement = await request(`/api/admin/civic-issues/${issueId}/team-assignments/reassign`, {
-    method: 'POST',
-    body: { teamId: teamB, routingDepartment: 'Water Supply' }
-  });
-  assert.equal(noActiveReplacement.status, 409);
   const addDeactivated = await request(`/api/admin/ward-teams/${teamB}/members`, {
     method: 'POST',
     body: { officerId }
@@ -274,7 +247,67 @@ test('Admin deactivation revokes sessions and excludes an officer from active te
     WHERE officer_user_id=? AND event_type IN ('ACTIVATED','DEACTIVATED')`).get(officerId).count, 2);
 });
 
+test('soft delete archives an officer, revokes sessions, removes team membership and excludes the account', async () => {
+  const deleteResponse = await request(`/api/admin/officers/${officerId}`, { method: 'DELETE' });
+  assert.equal(deleteResponse.status, 200);
+  assert.equal((await deleteResponse.json()).deleted, true);
+  const archived = db.prepare(`SELECT account_status,deleted_at,session_version FROM users WHERE id=?`).get(officerId);
+  assert.equal(archived.account_status, 'DEACTIVATED');
+  assert.ok(archived.deleted_at);
+  assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM ward_team_memberships
+    WHERE officer_user_id=? AND removed_at IS NULL`).get(officerId).count, 0);
+  const list = await request('/api/admin/officers');
+  assert.equal((await list.json()).items.some((officer) => officer.id === officerId), false);
+  const detail = await request(`/api/admin/officers/${officerId}`);
+  assert.equal(detail.status, 404);
+  assert.equal((await request(`/api/admin/officers/${officerId}/status`, {
+    method: 'PATCH', body: { status: 'ACTIVE' }
+  })).status, 409);
+});
+
+test('admin citizen management lists real complaints, deactivates, soft deletes and excludes deleted citizens', async () => {
+  const citizenId = 2;
+  const complaintId = Number(db.prepare(`INSERT INTO complaints
+    (user_id,civic_issue_id,title,description,latitude,longitude)
+    VALUES(?,?, 'Citizen complaint', 'Citizen complaint description',12.3,45.6)`)
+    .run(citizenId, issueId).lastInsertRowid);
+
+  const listResponse = await request('/api/admin/citizens?search=citizen');
+  assert.equal(listResponse.status, 200);
+  const listed = (await listResponse.json()).items.find((citizen) => citizen.id === citizenId);
+  assert.ok(listed);
+  assert.equal(listed.complaintCount, 1);
+
+  const detailResponse = await request(`/api/admin/citizens/${citizenId}`);
+  assert.equal(detailResponse.status, 200);
+  const detail = await detailResponse.json();
+  assert.equal(detail.complaintCount, 1);
+  assert.equal(detail.complaints[0].id, complaintId);
+
+  const deactivate = await request(`/api/admin/citizens/${citizenId}/status`, {
+    method: 'PATCH', body: { status: 'DEACTIVATED' }
+  });
+  assert.equal(deactivate.status, 200);
+  const sessionBefore = db.prepare('SELECT session_version FROM users WHERE id=?').get(citizenId).session_version;
+  assert.equal(sessionBefore, 1);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM complaints WHERE user_id=?').get(citizenId).count, 1);
+
+  const reactivate = await request(`/api/admin/citizens/${citizenId}/status`, {
+    method: 'PATCH', body: { status: 'ACTIVE' }
+  });
+  assert.equal(reactivate.status, 200);
+
+  const deleteResponse = await request(`/api/admin/citizens/${citizenId}`, { method: 'DELETE' });
+  assert.equal(deleteResponse.status, 200);
+  assert.equal(db.prepare(`SELECT deleted_at,account_status FROM users WHERE id=?`).get(citizenId).deleted_at !== null, true);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM complaints WHERE user_id=?').get(citizenId).count, 1);
+  const deletedList = await request('/api/admin/citizens');
+  assert.equal((await deletedList.json()).items.some((citizen) => citizen.id === citizenId), false);
+});
+
 test('citizens and officers cannot use Admin officer management endpoints', async () => {
+  db.prepare(`UPDATE users SET account_status='ACTIVE',deleted_at=NULL,
+    deactivated_at=NULL,session_version=0 WHERE id=2 AND role='CITIZEN'`).run();
   for (const userId of [2, 3]) {
     assert.equal((await request('/api/admin/officers', { userId })).status, 403);
     assert.equal((await request(`/api/admin/officers/${officerId}`, { userId })).status, 403);

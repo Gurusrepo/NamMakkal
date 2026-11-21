@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { db } from '../../config/database.js';
 
 const mapNotification = (row) => ({
@@ -7,6 +8,7 @@ const mapNotification = (row) => ({
   notificationType: row.notification_type,
   relatedComplaintId: row.related_complaint_id,
   relatedCivicIssueId: row.related_civic_issue_id,
+  relatedSupportReference: row.related_support_reference,
   isRead: Boolean(row.is_read),
   createdAt: row.created_at
 });
@@ -54,6 +56,32 @@ function createForRecipients(recipients, { eventKey, notificationType, title, me
   return created;
 }
 
+export function createSupportUpdateNotification({
+  userId,
+  kind,
+  referenceId,
+  status,
+  adminNotes,
+  rejectionReason
+}) {
+  if (!adminNotes) return 0;
+  const note = adminNotes.trim();
+  if (!note) return 0;
+
+  const digest = createHash('sha256')
+    .update(JSON.stringify({ kind, referenceId, status, note, rejectionReason: rejectionReason ?? null }))
+    .digest('hex');
+  const insert = db.prepare(`INSERT INTO notifications
+    (user_id,title,message,notification_type,related_support_reference,event_key)
+    VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,event_key) DO NOTHING`);
+  const subject = kind === 'SUGGESTION' ? 'suggestion' : 'reported problem';
+  const title = `Update for ${subject} ${referenceId}`;
+  const statusText = status.replaceAll('_', ' ').toLowerCase();
+  const message = `Status: ${statusText}\n\nAdmin note:\n${note}`;
+  return insert.run(userId, title, message, 'SUPPORT_UPDATE', referenceId,
+    `support:${kind}:${referenceId}:${digest}`).changes;
+}
+
 export function notifyIssueReporters(issueId, notification) {
   return createForRecipients(issueReporters(issueId), notification);
 }
@@ -74,7 +102,7 @@ export function notifyAssignedTeam(issueId, assignmentEventId) {
 export function listNotifications(userId, { limit, offset, unreadOnly }) {
   const where = unreadOnly ? 'user_id=? AND is_read=0' : 'user_id=?';
   const rows = db.prepare(`SELECT id,title,message,notification_type,related_complaint_id,
-      related_civic_issue_id,is_read,created_at
+      related_civic_issue_id,related_support_reference,is_read,created_at
     FROM notifications WHERE ${where} ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?`)
     .all(userId, limit + 1, offset);
   const hasMore = rows.length > limit;
@@ -93,7 +121,7 @@ export function markNotificationRead(userId, notificationId) {
   db.prepare('UPDATE notifications SET is_read=1 WHERE id=? AND user_id=?')
     .run(notificationId, userId);
   const row = db.prepare(`SELECT id,title,message,notification_type,related_complaint_id,
-      related_civic_issue_id,is_read,created_at
+      related_civic_issue_id,related_support_reference,is_read,created_at
     FROM notifications WHERE id=? AND user_id=?`).get(notificationId, userId);
   return row ? mapNotification(row) : null;
 }

@@ -524,6 +524,34 @@ test('admin_notes-only update preserves closed_at and rejection_reason', async (
   assert.equal(notesData.suggestion.closedAt, closedAt);
 });
 
+test('saved suggestion notes notify only the original submitter and retries are deduplicated', async () => {
+  addSubmission({
+    referenceId: 'NM-NOTE-SUGG01',
+    userId: 4,
+    kind: 'SUGGESTION',
+    title: 'Notification suggestion',
+    category: 'USER_EXPERIENCE',
+    description: 'Testing internal note notifications for a suggestion.',
+    status: 'NEW'
+  });
+
+  const payload = { status: 'UNDER_REVIEW', adminNotes: 'We are evaluating this feature.' };
+  assert.equal((await request('/api/admin/suggestions/NM-NOTE-SUGG01/status', {
+    userId: 1, method: 'PATCH', body: payload
+  })).status, 200);
+  assert.equal((await request('/api/admin/suggestions/NM-NOTE-SUGG01/status', {
+    userId: 1, method: 'PATCH', body: payload
+  })).status, 200);
+
+  const notifications = db.prepare(`SELECT user_id,title,message,notification_type,related_support_reference
+    FROM notifications WHERE related_support_reference=?`).all('NM-NOTE-SUGG01');
+  assert.equal(notifications.length, 1);
+  assert.equal(notifications[0].user_id, 4);
+  assert.equal(notifications[0].notification_type, 'SUPPORT_UPDATE');
+  assert.match(notifications[0].message, /We are evaluating this feature/);
+  assert.equal(notifications[0].related_support_reference, 'NM-NOTE-SUGG01');
+});
+
 test('admin_notes and storage keys are not exposed to citizen-facing responses', async () => {
   // The suggestion service mapSuggestionRecord always returns adminNotes
   // but the admin endpoint is protected. We verify that the service

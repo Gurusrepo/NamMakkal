@@ -54,7 +54,7 @@ function listOfficerTeams(officerId) {
 }
 
 export function listOfficers({ limit, offset, status, teamId, search }) {
-  const conditions = ["u.role='OFFICER'"];
+  const conditions = ["u.role='OFFICER'", 'u.deleted_at IS NULL'];
   const params = [];
   if (status) {
     conditions.push('u.account_status=?');
@@ -90,7 +90,7 @@ export function listOfficers({ limit, offset, status, teamId, search }) {
 
 export function getOfficer(officerId) {
   const row = db.prepare(`SELECT id,display_name,email,employee_id,account_status,email_verified,created_at,updated_at
-    FROM users WHERE id=? AND role='OFFICER'`).get(officerId);
+    FROM users WHERE id=? AND role='OFFICER' AND deleted_at IS NULL`).get(officerId);
   if (!row) return null;
   const events = db.prepare(`SELECT e.id,e.event_type,e.previous_status,e.next_status,e.created_at,
       e.admin_user_id,u.display_name AS admin_name
@@ -129,7 +129,7 @@ function insertOfficerWithGeneratedId(input, passwordHash) {
     try {
       const result = db.prepare(`INSERT INTO users
         (display_name,email,password_hash,role,employee_id,email_verified,account_status)
-        VALUES(?,?,?,'OFFICER',?,0,'PENDING_EMAIL_VERIFICATION')`)
+        VALUES(?,?,?,'OFFICER',?,1,'ACTIVE')`)
         .run(input.displayName, input.email, passwordHash, employeeId);
       return { officerId: Number(result.lastInsertRowid), employeeId };
     } catch (error) {
@@ -153,7 +153,7 @@ const createOfficerTransaction = db.transaction((input, adminId, passwordHash) =
   for (const teamId of input.teamIds) addMembership.run(teamId, officerId, adminId);
   db.prepare(`INSERT INTO officer_account_events
     (officer_user_id,admin_user_id,event_type,previous_status,next_status)
-    VALUES(?,?,'CREATED',NULL,'PENDING_EMAIL_VERIFICATION')`).run(officerId, adminId);
+    VALUES(?,?,'CREATED',NULL,'ACTIVE')`).run(officerId, adminId);
   return { officerId };
 });
 
@@ -172,8 +172,7 @@ async function deliverRegistrationInvitation(officerId, sender) {
 }
 
 export async function createOfficer(input, adminId, sender = sendVerificationCode) {
-  const initialPassword = randomBytes(32).toString('base64url');
-  const passwordHash = await bcrypt.hash(initialPassword, 12);
+  const passwordHash = await bcrypt.hash(input.password, 12);
   let officerId;
   try {
     ({ officerId } = createOfficerTransaction.immediate(input, adminId, passwordHash));
@@ -183,20 +182,15 @@ export async function createOfficer(input, adminId, sender = sendVerificationCod
     }
     throw error;
   }
-  try {
-    const invitation = await deliverRegistrationInvitation(officerId, sender);
-    return { officer: getOfficer(officerId), invitation: { sent: true, resendAfter: invitation.resendAfter ?? null } };
-  } catch (error) {
-    if (!(error instanceof OfficerManagementError)) throw error;
-    return { officer: getOfficer(officerId), invitation: { sent: false, error: error.message } };
-  }
+  return { officer: getOfficer(officerId) };
 }
 
 export async function resendOfficerInvitation(officerId, adminId, sender = sendVerificationCode) {
   requireAdmin(adminId);
-  const officer = db.prepare(`SELECT id,account_status,email_verified FROM users
+  const officer = db.prepare(`SELECT id,account_status,email_verified,deleted_at FROM users
     WHERE id=? AND role='OFFICER'`).get(officerId);
   if (!officer) throw new OfficerManagementError('Officer not found', 404);
+  if (officer.deleted_at) throw new OfficerManagementError('Deleted officer accounts cannot be reactivated', 409);
   if (officer.account_status !== 'PENDING_EMAIL_VERIFICATION' || officer.email_verified) {
     throw new OfficerManagementError('Only officers awaiting email verification can receive an invitation', 409);
   }
@@ -211,9 +205,10 @@ export async function resendOfficerInvitation(officerId, adminId, sender = sendV
 
 const updateOfficerStatusTransaction = db.transaction((officerId, status, adminId) => {
   requireAdmin(adminId);
-  const officer = db.prepare(`SELECT id,account_status,email_verified FROM users
+  const officer = db.prepare(`SELECT id,account_status,email_verified,deleted_at FROM users
     WHERE id=? AND role='OFFICER'`).get(officerId);
   if (!officer) throw new OfficerManagementError('Officer not found', 404);
+  if (officer.deleted_at) throw new OfficerManagementError('Deleted officer accounts cannot be reactivated', 409);
   if (officer.account_status === status) throw new OfficerManagementError(`Officer is already ${status.toLowerCase()}`, 409);
   if (status === 'ACTIVE' && (!officer.email_verified || officer.account_status !== 'DEACTIVATED')) {
     throw new OfficerManagementError('Only a previously active, email-verified officer can be reactivated', 409);
@@ -233,4 +228,28 @@ const updateOfficerStatusTransaction = db.transaction((officerId, status, adminI
 
 export function updateOfficerStatus(officerId, status, adminId) {
   return updateOfficerStatusTransaction.immediate(officerId, status, adminId);
+}
+
+export function deleteOfficer(officerId, adminId) {
+  const deleteTransaction = db.transaction(() => {
+    requireAdmin(adminId);
+    const officer = db.prepare(`SELECT id,account_status FROM users
+      WHERE id=? AND role='OFFICER' AND deleted_at IS NULL`).get(officerId);
+    if (!officer) throw new OfficerManagementError('Officer not found', 404);
+
+    const timestamp = new Date().toISOString();
+    const updated = db.prepare(`UPDATE users SET account_status='DEACTIVATED',deleted_at=?,
+      deactivated_at=?,session_version=session_version+1,
+      updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
+      WHERE id=? AND role='OFFICER' AND deleted_at IS NULL`).run(timestamp, timestamp, officerId);
+    if (updated.changes !== 1) throw new OfficerManagementError('Officer account changed; retry the request', 409);
+
+    db.prepare(`UPDATE ward_team_memberships SET removed_at=?,removed_by_admin_id=?
+      WHERE officer_user_id=? AND removed_at IS NULL`).run(timestamp, adminId, officerId);
+    db.prepare(`INSERT INTO officer_account_events
+      (officer_user_id,admin_user_id,event_type,previous_status,next_status)
+      VALUES(?,?,'DEACTIVATED',?, 'DEACTIVATED')`).run(officerId, adminId, officer.account_status);
+  });
+  deleteTransaction.immediate();
+  return { deleted: true };
 }

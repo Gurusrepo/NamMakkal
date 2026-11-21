@@ -71,6 +71,14 @@ async function addCitizen(email) {
     .run('Reset Test Citizen', email, passwordHash).lastInsertRowid);
 }
 
+async function addOfficer(email) {
+  const passwordHash = await bcrypt.hash(currentPassword, 4);
+  return Number(db.prepare(`INSERT INTO users
+    (display_name,email,password_hash,role,email_verified,account_status)
+    VALUES(?, ?, ?, 'OFFICER', 1, 'ACTIVE')`)
+    .run('Reset Test Officer', email, passwordHash).lastInsertRowid);
+}
+
 before(async () => {
   server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
@@ -141,6 +149,69 @@ test('password reset is generic, purpose-scoped, atomic, and revokes existing se
   });
   assert.equal(newPasswordLogin.status, 202);
   assert.equal(newPasswordLogin.headers.get('set-cookie'), null);
+});
+
+test('officer forgot password uses the registered email OTP, cooldown, expiry and password hash', async () => {
+  const email = 'reset-officer@example.test';
+  const officerId = await addOfficer(email);
+
+  const requested = await request('/api/auth/password/forgot', {
+    method: 'POST', body: { email }
+  });
+  assert.equal(requested.status, 202);
+  assert.match(deliveredCodes.reset, /^\d{6}$/);
+  const challenge = db.prepare(`SELECT destination,resend_after,consumed_at
+    FROM user_verification_challenges
+    WHERE user_id=? AND channel='EMAIL' AND purpose='PASSWORD_RESET'`)
+    .get(officerId);
+  assert.equal(challenge.destination, email);
+  assert.equal(challenge.consumed_at, null);
+
+  const resend = await request('/api/auth/password/forgot', {
+    method: 'POST', body: { email }
+  });
+  assert.equal(resend.status, 202);
+  assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM user_verification_challenges
+    WHERE user_id=? AND purpose='PASSWORD_RESET'`).get(officerId).count, 1);
+
+  const invalid = await request('/api/auth/password/reset', {
+    method: 'POST',
+    body: { email, code: deliveredCodes.reset === '000000' ? '000001' : '000000', password: newPassword }
+  });
+  assert.equal(invalid.status, 400);
+
+  db.prepare(`UPDATE user_verification_challenges SET expires_at=?,
+    resend_after=? WHERE user_id=? AND purpose='PASSWORD_RESET'`)
+    .run(new Date(Date.now() - 1000).toISOString(),
+      new Date(Date.now() - 1000).toISOString(), officerId);
+  const expired = await request('/api/auth/password/reset', {
+    method: 'POST',
+    body: { email, code: deliveredCodes.reset, password: newPassword }
+  });
+  assert.equal(expired.status, 400);
+
+  assert.equal((await request('/api/auth/password/forgot', {
+    method: 'POST', body: { email }
+  })).status, 202);
+  const renewedOfficerCode = deliveredCodes.reset;
+  const completed = await request('/api/auth/password/reset', {
+    method: 'POST',
+    body: { email, code: renewedOfficerCode, password: newPassword }
+  });
+  assert.equal(completed.status, 200);
+  assert.equal(await bcrypt.compare(newPassword, db.prepare('SELECT password_hash FROM users WHERE id=?').get(officerId).password_hash), true);
+
+  const reused = await request('/api/auth/password/reset', {
+    method: 'POST',
+    body: { email, code: deliveredCodes.reset, password: 'AnotherPassword456' }
+  });
+  assert.equal(reused.status, 400);
+
+  const loginChallenge = await request('/api/auth/login', {
+    method: 'POST', body: { email, password: newPassword }
+  });
+  assert.equal(loginChallenge.status, 202);
+  assert.equal(loginChallenge.headers.get('set-cookie'), null);
 });
 
 test('SMTP failure leaves no usable password-reset challenge and does not change the password', async () => {

@@ -16,6 +16,7 @@ export const adminNavigationItems = [
   { key: 'suggestions', label: 'Suggestions', path: 'suggestions', icon: Lightbulb, available: true },
   { key: 'announcements', label: 'Announcements', path: 'announcements', icon: Megaphone, available: true },
   { key: 'officers', label: 'Officers', path: 'officers', icon: Users, available: true },
+  { key: 'citizens', label: 'Citizens', path: 'citizens', icon: UsersRound, available: true },
   { key: 'wards', label: 'Wards', path: 'wards', icon: MapPinned, available: true },
   { key: 'teams', label: 'Teams', path: 'teams', icon: UsersRound, available: true },
   { key: 'duplicateReviews', label: 'Duplicate reviews', path: 'duplicate-reviews', icon: CopyCheck, available: true },

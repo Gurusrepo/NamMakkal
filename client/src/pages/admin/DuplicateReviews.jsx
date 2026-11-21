@@ -139,7 +139,7 @@ export default function DuplicateReviews() {
                   <>
                     <div className="flex flex-wrap gap-2">
                       <button type="button" disabled={actionId !== null} onClick={() => performAction(item.suggestionId, () => assessDuplicate(item.suggestionId))} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#d9ded5] px-4 text-sm font-semibold text-[#34483a] disabled:opacity-50">
-                        <Sparkles className="h-4 w-4" aria-hidden="true" /> Assess with AI
+                        <Sparkles className="h-4 w-4" aria-hidden="true" /> {actionId === item.suggestionId ? 'Assessing...' : actionError ? 'Retry AI assessment' : 'Assess with AI'}
                       </button>
                       <button type="button" disabled={actionId !== null} onClick={() => performAction(item.suggestionId, () => approveDuplicate(item.suggestionId, { canonicalIssueId: item.issueA.id }))} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1d4933] px-4 text-sm font-semibold text-white disabled:opacity-50">
                         <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Keep issue #{item.issueA.id}

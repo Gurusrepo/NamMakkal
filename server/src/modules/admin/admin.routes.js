@@ -11,6 +11,7 @@ import {
   createTeamSchema, updateTeamSchema, addTeamMemberSchema, teamRoutingSchema,
   disputeIssueIdSchema, disputeListQuerySchema, disputeReviewSchema,
   officerIdSchema, officerListQuerySchema, createOfficerSchema, updateOfficerStatusSchema,
+  citizenIdSchema, citizenListQuerySchema, citizenStatusSchema,
   reportedProblemListQuerySchema, reportedProblemReferenceSchema, updateReportedProblemStatusSchema,
   suggestionListQuerySchema, suggestionReferenceSchema, updateSuggestionStatusSchema
 } from './admin.validation.js';
@@ -20,6 +21,7 @@ import { createDisputeReviewController } from './admin.controller.js';
 import { createReportedProblemController } from './reported-problem.controller.js';
 import * as suggestionController from './suggestion.controller.js';
 import { createOfficerManagementController } from './officer-management.controller.js';
+import * as citizenController from './citizen-management.controller.js';
 import { sendVerificationCode } from '../auth/verification.service.js';
 
 export function createAdminRouter(storageAdapter = objectStorage, verificationSender = sendVerificationCode) {
@@ -68,6 +70,11 @@ export function createAdminRouter(storageAdapter = objectStorage, verificationSe
   router.get('/officers/:id', validate(officerIdSchema, 'params'), officerController.get);
   router.patch('/officers/:id/status', validate(officerIdSchema, 'params'), validate(updateOfficerStatusSchema), officerController.updateStatus);
   router.post('/officers/:id/invitation', validate(officerIdSchema, 'params'), officerController.resendInvitation);
+  router.delete('/officers/:id', validate(officerIdSchema, 'params'), officerController.delete);
+  router.get('/citizens', validate(citizenListQuerySchema, 'query'), citizenController.list);
+  router.get('/citizens/:id', validate(citizenIdSchema, 'params'), citizenController.get);
+  router.patch('/citizens/:id/status', validate(citizenIdSchema, 'params'), validate(citizenStatusSchema), citizenController.updateStatus);
+  router.delete('/citizens/:id', validate(citizenIdSchema, 'params'), citizenController.remove);
   return router;
 }
 
