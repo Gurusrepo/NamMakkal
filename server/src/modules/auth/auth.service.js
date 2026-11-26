@@ -183,7 +183,7 @@ export async function login({ email, password }) {
 
 function maskEmail(email) {
   const [local, domain] = String(email).split('@');
-  return `Email: ${local.charAt(0)}***@${domain}`;
+  return `${local.charAt(0)}***@${domain}`;
 }
 
 export async function completeLoginOtp({ email, code }) {

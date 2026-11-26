@@ -286,18 +286,18 @@ export default function Register() {
         />
 
         <div className="relative z-10 max-w-lg pb-12">
-          <p className="mb-5 font-['Inter'] text-xs font-bold uppercase tracking-[0.24em] text-[#e2c77f]">
+          <p className="mb-5 font-['Inter'] text-xs font-bold uppercase tracking-[0.24em] text-[#e2c77f] transition-transform duration-300 ease-in-out hover:scale-105">
             Together, We Build Better Tomorrow
           </p>
 
-          <h1 className="font-['Manrope'] text-5xl font-extrabold leading-[1.12] tracking-tight xl:text-6xl">
+          <h1 className="font-['Manrope'] text-5xl font-extrabold leading-[1.12] tracking-tight xl:text-6xl ">
             Our town.<br />
             Our voice.<br />
             <span className="text-[#e2c77f]">Our future.</span>
           </h1>
 
-          <p className="mt-7 max-w-md font-['Inter'] text-base leading-8 text-white/80">
-            Your voice matters. Share ideas, raise concerns, and work together to create a better, stronger Place for everyone.
+          <p className="mt-7 max-w-md font-['Inter'] text-base leading-8 text-white/80 transition-transform duration-300 ease-in-out hover:scale-105">
+            Your voice matters. Share ideas, raise concerns, and work together to create a better, stronger future for everyone.
           </p>
         </div>
 
@@ -322,7 +322,7 @@ export default function Register() {
 
           <div className="mb-7">
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[#9a7832]">
-              Join our Community
+              To Join Community
             </p>
           </div>
 
@@ -477,9 +477,6 @@ export default function Register() {
     </button>
   </div>
 
-  <p className="mt-2 ml-2 text-xs text-[#7a847b]">
-    max 72 characters.
-  </p>
 </div>
 
 <div>
@@ -532,7 +529,7 @@ export default function Register() {
                   Verify your email
                 </h3>
                 <p className="mt-1 text-sm text-[#68736a]">
-                  OTP sent to email: {maskEmail(email)}
+                  OTP sent to: {maskEmail(email)}
                 </p>
               </div>
 

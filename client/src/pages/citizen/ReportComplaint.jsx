@@ -8,7 +8,7 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 function validatePhoto(file) {
-  if (!file) return 'Choose a photo of the issue.';
+  if (!file) return '';
   if (!allowedTypes.has(file.type)) return 'Photo must be a JPEG, PNG, or WebP image.';
   if (file.size > MAX_PHOTO_BYTES) return 'The photo must be 5 MB or smaller.';
   return '';
@@ -48,6 +48,8 @@ export default function ReportComplaint() {
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [submitStage, setSubmitStage] = useState('');
+  const [uploadPercent, setUploadPercent] = useState(null);
 
   useEffect(() => {
     if (!photo) {
@@ -243,8 +245,11 @@ export default function ReportComplaint() {
     }
 
     setIsSubmitting(true);
+    setSubmitStage('validating');
+    setUploadPercent(photo ? 0 : null);
 
     try {
+      setSubmitStage(photo ? 'uploading' : 'submitting');
       const result = await createComplaint({
         title: title.trim(),
         description: description.trim(),
@@ -252,8 +257,13 @@ export default function ReportComplaint() {
         latitude: numericLatitude,
         longitude: numericLongitude,
         location_accuracy_meters: accuracy || undefined,
-        photo
+        photo,
+        onUploadProgress: photo ? (event) => {
+          if (typeof event.loaded !== 'number' || !event.total) return;
+          setUploadPercent(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        } : undefined
       });
+      setSubmitStage('confirmed');
 
       navigate(`/citizen/complaints/${result.complaint.id}`, {
         replace: true
@@ -264,6 +274,7 @@ export default function ReportComplaint() {
       );
     } finally {
       setIsSubmitting(false);
+      setSubmitStage('');
     }
   }
 
@@ -307,6 +318,27 @@ export default function ReportComplaint() {
         aria-busy={isSubmitting}
         className="space-y-6 rounded-2xl border border-[#e5e2d5] bg-white p-5 shadow-sm sm:p-8"
       >
+        {isSubmitting && (
+          <section aria-label="Complaint submission progress" className="rounded-xl border border-[#d9e3d6] bg-[#f7faf5] p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#68736a]">Submission progress</p>
+            <ol className="mt-3 space-y-2 text-sm">
+              <li className="flex items-center gap-2 text-[#1d4933]"><span aria-hidden="true" className="h-2 w-2 rounded-full bg-[#477454]" /> Validating complaint details — complete</li>
+              {photo && (
+                <li className="flex items-center gap-2 text-[#526258]">
+                  <span aria-hidden="true" className={`h-2 w-2 rounded-full ${uploadPercent === 100 ? 'bg-[#477454]' : 'bg-[#d4ae58]'}`} />
+                  {uploadPercent === 100 ? 'Uploading evidence — complete' : `Uploading evidence${uploadPercent !== null ? ` — ${uploadPercent}%` : ' — in progress'}`}
+                </li>
+              )}
+              <li className="text-[#526258]">{submitStage === 'submitting' ? 'Submitting complaint to the server — in progress' : submitStage === 'confirmed' ? 'Submitting complaint to the server — complete' : 'Waiting to submit complaint to the server'}</li>
+              {submitStage === 'confirmed' && <li className="font-semibold text-[#1d4933]">Complaint confirmation received</li>}
+            </ol>
+            {photo && uploadPercent !== null && (
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#dfe7dc]" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={uploadPercent}>
+                <div className="h-full rounded-full bg-[#477454] transition-[width] motion-reduce:transition-none" style={{ width: `${uploadPercent}%` }} />
+              </div>
+            )}
+          </section>
+        )}
         <div>
           <label
             htmlFor="complaint-title"
@@ -615,7 +647,9 @@ export default function ReportComplaint() {
             disabled={isSubmitting || Boolean(photoError)}
             className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#1d4933] px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-[#163b29] focus:outline-none focus:ring-4 focus:ring-[#477454]/25 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isSubmitting ? 'Submitting complaint...' : 'Submit complaint'}
+            {isSubmitting ? (
+              <><span aria-hidden="true" className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white motion-reduce:animate-none" />Submitting complaint...</>
+            ) : 'Submit complaint'}
           </button>
         </div>
       </form>

@@ -138,6 +138,19 @@ test('Gemini retries a rate limit once, while timeout fails safely', async () =>
   assert.equal(calls, 2);
 });
 
+test('Gemini falls back to a supported model after a 404 model error', async () => {
+  const models = [];
+  const mockClient = { models: { generateContent: async (request) => {
+    models.push(request.model);
+    if (models.length === 1) throw Object.assign(new Error('model unavailable'), { status: 404 });
+    return { text: JSON.stringify(validAssessment) };
+  } } };
+
+  const result = await classifyComplaint({ title: 'Road issue', description: 'A clear road defect is described.' }, mockClient);
+  assert.equal(result.category, 'ROAD_DAMAGE');
+  assert.deepEqual(models, ['gemini-3.8-flash', 'gemini-2.5-flash-lite']);
+});
+
 test('malformed risk factors do not break assessment retrieval', () => {
   const { complaintId } = addComplaint(1, 'SUCCEEDED');
   db.prepare(`UPDATE complaint_ai_assessments

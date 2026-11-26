@@ -32,6 +32,15 @@ export function getOwnedAssessment(userId, complaintId) {
       human_review_reason: row.human_review_reason
     });
   }
-  if (row.status === 'FAILED') result.message = 'AI assessment could not be completed.';
+  if (row.status === 'FAILED') {
+    result.errorCode = row.error_code;
+    result.message = row.error_code === 'PROVIDER_UNCONFIGURED'
+      ? 'AI assessment is unavailable because the provider is not configured.'
+      : row.error_code === 'PROVIDER_RATE_LIMITED'
+        ? 'The AI provider is temporarily rate limited. Please try again later.'
+        : row.error_code === 'PROVIDER_TIMEOUT'
+          ? 'The AI provider timed out. Please try again.'
+          : 'AI assessment could not be completed.';
+  }
   return result;
 }

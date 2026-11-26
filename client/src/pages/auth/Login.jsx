@@ -166,18 +166,18 @@ export default function Login() {
 />
 
         <div className="relative z-10 max-w-lg pb-12">
-  <p className="mb-5 font-['Inter'] text-xs font-bold uppercase tracking-[0.24em] text-[#e2c77f]">
+  <p className="mb-5 font-['Inter'] text-xs font-bold uppercase tracking-[0.24em] text-[#e2c77f] transition-transform duration-300 ease-in-out hover:scale-105">
     Together, We Build Better Tomorrow
   </p>
 
-  <h1 className="font-['Manrope'] text-5xl font-extrabold leading-[1.12] tracking-tight xl:text-6xl">
-    Our town.<br />
-    Our voice.<br />
-    <span className="text-[#e2c77f]">Our future.</span>
+  <h1 className="font-['Manrope'] text-5xl font-extrabold leading-[1.12] ">
+      Our town.<br />
+      Our voice.<br />
+      <span className="text-[#e2c77f]">Our future.</span>
   </h1>
 
-  <p className="mt-7 max-w-md font-['Inter'] text-base leading-8 text-white/80">
-    Your voice matters. Share ideas, raise concerns, and work together to create a better, stronger Place for everyone.
+  <p className="mt-7 max-w-md font-['Inter'] text-base leading-8 text-white/80 transition-transform duration-300 ease-in-out hover:scale-105">
+    Your voice matters. Share ideas, raise concerns, and work together to create a better, stronger future for everyone.
   </p>
 </div>
         <p className="relative z-10 text-xs text-white/55">
@@ -269,7 +269,9 @@ export default function Login() {
 
             </div>
             <button type="submit" disabled={isSubmitting} className="flex w-full items-center justify-center rounded-xl bg-[#1d4933] px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#163b29] focus:outline-none focus:ring-4 focus:ring-[#477454]/25 disabled:cursor-not-allowed disabled:opacity-65">
-              {isSubmitting ? 'Signing you in...' : verificationRequired ? 'Send or resend email code' : 'Sign in'}
+              {isSubmitting ? (
+                <><span aria-hidden="true" className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white motion-reduce:animate-none" />Signing you in...</>
+              ) : verificationRequired ? 'Send or resend email code' : 'Sign in'}
             </button>
             <div className="text-right">
               <Link className="text-sm font-semibold text-[#1d4933] underline underline-offset-2" to="/forgot-password">{t('auth.forgotPassword')}</Link>
@@ -284,7 +286,7 @@ export default function Login() {
               </h3>
               {otpDestination && (
                 <p className="mt-1 text-sm text-[#68736a]">
-                  OTP sent to email: {otpDestination}
+                  OTP sent to : {otpDestination}
                 </p>
               )}
             </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listComplaints } from '../../api/complaints.js';
-import { EmptyState, ErrorState, LoadingState } from '../../components/AsyncState.jsx';
+import { EmptyState, ErrorState, Skeleton } from '../../components/AsyncState.jsx';
 import ComplaintCard from '../../components/citizen/ComplaintCard.jsx';
 import { requestOnce } from '../../utils/requestOnce.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -64,7 +64,9 @@ export default function MyComplaints() {
       {error && complaints.length === 0 ? (
         <ErrorState onRetry={retryPage}>We could not load your complaints. {error.message}</ErrorState>
       ) : isLoading && complaints.length === 0 ? (
-        <LoadingState>Loading your complaints...</LoadingState>
+        <div className="grid gap-4 lg:grid-cols-2" aria-label="Loading complaints">
+          {[0, 1, 2, 3].map((item) => <div key={item} className="rounded-2xl border border-[#e5e2d5] bg-white p-5 shadow-sm"><Skeleton className="h-4 w-3/5" /><Skeleton className="mt-3 h-5 w-4/5" /><Skeleton className="mt-4 h-3 w-full" /><Skeleton className="mt-2 h-3 w-2/3" /></div>)}
+        </div>
       ) : complaints.length === 0 ? (
         <EmptyState>You have not submitted any complaints yet. Start with a clear description and a photo of the issue.</EmptyState>
       ) : (

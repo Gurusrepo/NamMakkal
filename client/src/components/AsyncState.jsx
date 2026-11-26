@@ -1,5 +1,14 @@
 export function LoadingState({ children = 'Loading...' }) {
-  return <p role="status" aria-live="polite" className="rounded-xl bg-white px-4 py-3 text-sm text-[#385743]">{children}</p>;
+  return (
+    <p role="status" aria-live="polite" className="flex items-center gap-3 rounded-xl bg-white px-4 py-3 text-sm text-[#385743]">
+      <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-[#cfd8ce] border-t-[#1d4933]" />
+      {children}
+    </p>
+  );
+}
+
+export function Skeleton({ className = '' }) {
+  return <span aria-hidden="true" className={`block animate-pulse rounded-lg bg-[#e7ebe3] motion-reduce:animate-none ${className}`} />;
 }
 
 export function ErrorState({ children, onRetry, retryLabel = 'Try again' }) {

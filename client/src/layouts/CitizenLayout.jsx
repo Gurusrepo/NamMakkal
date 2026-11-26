@@ -129,6 +129,9 @@ export default function CitizenLayout() {
             <div className="hidden lg:block">
               <NavLink to="/citizen/help" className={sidebarLinkClass}><SidebarIcon name="help" /><span className="min-w-0 truncate">{t('navigation.help')}</span></NavLink>
             </div>
+            <div className="hidden lg:block lg:mt-auto lg:pb-1">
+              <Link to="/terms-and-conditions" className="block rounded-lg px-3 py-2 text-xs text-white/65 underline-offset-4 hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e2c77f]">Terms &amp; Conditions</Link>
+            </div>
             <button
                 type="button"
                 ref={moreTriggerRef}
@@ -149,6 +152,7 @@ export default function CitizenLayout() {
             <NavLink to="/citizen/announcements" onClick={closeMoreMenu} className={({ isActive }) => `flex min-h-11 items-center rounded-lg px-3 text-sm font-medium ${isActive ? 'bg-[#edf2eb] text-[#1d4933]' : 'hover:bg-[#f7f8f5]'}`}>{t('navigation.announcements')}</NavLink>
             <NavLink to="/citizen/notifications" onClick={closeMoreMenu} className={({ isActive }) => `flex min-h-11 items-center justify-between rounded-lg px-3 text-sm font-medium ${isActive ? 'bg-[#edf2eb] text-[#1d4933]' : 'hover:bg-[#f7f8f5]'}`}><span>{t('navigation.notifications')}</span>{unreadCount > 0 && <span className="rounded-full bg-[#e2c77f] px-2 py-0.5 text-xs font-bold text-[#213c2a]">{unreadCount}</span>}</NavLink>
             <NavLink to="/citizen/help" onClick={closeMoreMenu} className={({ isActive }) => `flex min-h-11 items-center rounded-lg px-3 text-sm font-medium ${isActive ? 'bg-[#edf2eb] text-[#1d4933]' : 'hover:bg-[#f7f8f5]'}`}>{t('navigation.help')}</NavLink>
+            <Link to="/terms-and-conditions" onClick={closeMoreMenu} className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium hover:bg-[#f7f8f5]">Terms &amp; Conditions</Link>
           </div>
         )}
       </header>

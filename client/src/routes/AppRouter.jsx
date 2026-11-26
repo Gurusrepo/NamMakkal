@@ -3,6 +3,7 @@ import PlaceholderPage from '../pages/PlaceholderPage.jsx';
 import Login from '../pages/auth/Login.jsx';
 import Register from '../pages/auth/Register.jsx';
 import ForgotPassword from '../pages/auth/ForgotPassword.jsx';
+import TermsAndConditions from '../pages/TermsAndConditions.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import RoleRoute from './RoleRoute.jsx';
 import NotFoundPage from '../pages/NotFoundPage.jsx';
@@ -65,6 +66,10 @@ export const router = createBrowserRouter([
   {
     path: '/forgot-password',
     element: <ForgotPassword />
+  },
+  {
+    path: '/terms-and-conditions',
+    element: <TermsAndConditions />
   },
   {
     path: '/citizen',

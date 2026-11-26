@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getAiAssessment, getComplaint, getComplaintTimeline, getResolution, submitResolutionVerification } from '../../api/complaints.js';
 import { getApiErrorMessage } from '../../api/errors.js';
-import { EmptyState, ErrorState, LoadingState } from '../../components/AsyncState.jsx';
+import { EmptyState, ErrorState, LoadingState, Skeleton } from '../../components/AsyncState.jsx';
 import StatusBadge from '../../components/citizen/StatusBadge.jsx';
 import IssueTimeline from '../../components/citizen/IssueTimeline.jsx';
 import { requestOnce } from '../../utils/requestOnce.js';
@@ -217,7 +217,15 @@ export default function ComplaintDetails() {
     } : current);
   }
 
-  if (isLoading) return <LoadingState>Loading complaint details...</LoadingState>;
+  if (isLoading) return (
+    <div className="mx-auto max-w-3xl space-y-4" aria-label="Loading complaint details">
+      <div className="rounded-2xl border border-[#e5e2d5] bg-white p-5 shadow-sm sm:p-6">
+        <Skeleton className="h-3 w-28" /><Skeleton className="mt-3 h-8 w-3/4" /><Skeleton className="mt-4 h-4 w-full" /><Skeleton className="mt-2 h-4 w-5/6" />
+        <div className="mt-6 grid grid-cols-2 gap-3"><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
+      </div>
+      <Skeleton className="h-40" />
+    </div>
+  );
   if (error || !complaint) return <div className="space-y-4"><Link to="/citizen/complaints" className="text-sm font-semibold text-[#1d4933] underline underline-offset-4">Back to complaints</Link><ErrorState onRetry={() => setRetry((value) => value + 1)}>{error || 'Complaint not found.'}</ErrorState></div>;
 
   const mapsUrl = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(complaint.latitude)}&mlon=${encodeURIComponent(complaint.longitude)}#map=17/${encodeURIComponent(complaint.latitude)}/${encodeURIComponent(complaint.longitude)}`;

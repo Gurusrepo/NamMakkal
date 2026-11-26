@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { listAnnouncements } from '../../api/announcements.js';
 import { getApiErrorMessage } from '../../api/errors.js';
 import { getComplaintSummary, listComplaints } from '../../api/complaints.js';
-import { EmptyState, ErrorState, LoadingState } from '../../components/AsyncState.jsx';
+import { EmptyState, ErrorState, LoadingState, Skeleton } from '../../components/AsyncState.jsx';
 import ComplaintCard from '../../components/citizen/ComplaintCard.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { requestOnce } from '../../utils/requestOnce.js';
@@ -90,7 +90,11 @@ export default function CitizenDashboard() {
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-[#20382a]">Your complaint activity</h2>
         </div>
-        {summaryLoading ? <LoadingState>Loading complaint totals...</LoadingState> : summaryError ? (
+        {summaryLoading ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4" aria-label="Loading complaint totals">
+            {[0, 1, 2, 3].map((item) => <div key={item} className="rounded-2xl border-l-4 border-[#d7dccf] bg-white p-4 shadow-sm sm:p-5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-3 h-8 w-12" /></div>)}
+          </div>
+        ) : summaryError ? (
           <ErrorState onRetry={() => setRetry((value) => value + 1)}>{summaryError}</ErrorState>
         ) : (
           <>

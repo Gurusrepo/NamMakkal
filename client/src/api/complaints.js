@@ -11,11 +11,11 @@ export function getResolution(id) { return body(apiClient.get(`/complaints/${id}
 export function submitResolutionVerification(id, payload) {
   return body(apiClient.post(`/complaints/${id}/resolution-verification`, payload));
 }
-export function createComplaint({ photo, ...fields }) {
+export function createComplaint({ photo, onUploadProgress, ...fields }) {
   const form = new FormData();
   Object.entries(fields).forEach(([key, value]) => {
     if (value !== undefined && value !== null) form.append(key, String(value));
   });
   if (photo) form.append('photo', photo);
-  return body(apiClient.post('/complaints', form));
+  return body(apiClient.post('/complaints', form, onUploadProgress ? { onUploadProgress } : undefined));
 }

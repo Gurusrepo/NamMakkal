@@ -55,7 +55,7 @@ export async function assessDuplicatePair(reports, client = null) {
 
 function isRetryable(error) {
   const status = error?.status ?? error?.statusCode;
-  return status === 429 || (Number.isInteger(status) && status >= 500) || error?.name === 'TimeoutError';
+  return status === 404 || status === 429 || (Number.isInteger(status) && status >= 500) || error?.name === 'TimeoutError';
 }
 
 function safeIdentifier(value) {
@@ -123,8 +123,11 @@ export async function classifyComplaint({ title, description }, client = null) {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       attemptCount += 1;
+      const model = attempt === 1 && !env.GEMINI_MODEL.includes('2.5')
+        ? 'gemini-2.5-flash-lite'
+        : env.GEMINI_MODEL;
       const response = await ai.models.generateContent({
-        model: env.GEMINI_MODEL,
+        model,
         contents,
         config: {
           systemInstruction,

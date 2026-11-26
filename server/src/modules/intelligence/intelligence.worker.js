@@ -56,10 +56,15 @@ export async function processNextAssessment(classifier = classifyComplaint) {
       console.error('Duplicate candidate refresh failed:', error?.code ?? error?.name ?? 'Error');
     }
   } catch (error) {
-    const safeCode = error?.diagnostic?.category ?? (
-      ['PROVIDER_UNCONFIGURED', 'INVALID_PROVIDER_RESPONSE'].includes(error?.code)
-        ? error.code : 'PROVIDER_UNAVAILABLE'
-    );
+    const safeCode = error?.code === 'PROVIDER_UNCONFIGURED'
+      ? 'PROVIDER_UNCONFIGURED'
+      : error?.code === 'INVALID_PROVIDER_RESPONSE'
+        ? 'INVALID_PROVIDER_RESPONSE'
+        : error?.diagnostic?.category === 'QUOTA'
+          ? 'PROVIDER_RATE_LIMITED'
+          : error?.diagnostic?.category === 'TIMEOUT'
+            ? 'PROVIDER_TIMEOUT'
+            : 'PROVIDER_UNAVAILABLE';
     saveFailure.run(safeCode, item.id);
     if (error?.diagnostic) {
       console.error(JSON.stringify({ event: 'gemini_classification_failed', ...error.diagnostic }));

@@ -34,7 +34,7 @@ const schema = z.object({
   SUPABASE_URL: z.string().url('SUPABASE_URL must be a valid URL'),
   SUPABASE_SECRET_KEY: z.string().min(1, 'SUPABASE_SECRET_KEY is required'),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().min(1).default('gemini-3.5-flash-lite')
+  GEMINI_MODEL: z.string().min(1).default('gemini-2.5-flash-lite')
 });
 
 const parsed = schema.safeParse(process.env);
